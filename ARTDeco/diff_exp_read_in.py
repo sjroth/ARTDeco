@@ -1,182 +1,89 @@
 '''
-Script for running diff_exp_read_in mode.
+Module that contains functions for running diff_exp_read_in mode.
 '''
-from ARTDeco.modules.DESeq2 import reformat_meta,reformat_comparisons,generate_comparisons,load_deseq_dataset,\
-    run_deseq,deseq_results
-from ARTDeco.modules.diff_exp_read_in import read_in_diff_exp,assign_read_in_genes
-
-import sys
+import pandas as pd
+import numpy as np
 import os
 
-def main(argv):
+'''
+Define a function that can get all of the condition information.
+'''
+def get_conditions(conditions_file,meta_file):
 
-    home_dir = argv[0]
-    meta_file = argv[1]
-    comparisons_file = argv[2]
-    log2FC = float(argv[3])
-    pval = float(argv[4])
-    fpkm = float(argv[5])
-    read_in_threshold = float(argv[6])
-    overwrite = bool(argv[7] == 'True')
+    #Get conditions.
+    condition1,condition2 = conditions_file.split('/')[-1].split('-')[:2]
 
-    #Checking prerequisites.
-    print('Checking prerequisites...')
+    #Load the meta information.
+    meta = pd.read_csv(meta_file,sep='\t')
+    meta = meta[meta.Group.isin([condition1,condition2])]
 
-    if os.path.isfile(os.path.join(home_dir,'quantification','gene.exp.raw.txt')):
-        print('Gene expression file exists...')
-    else:
-        print('Gene expression file does not exist... Re-run previous analysis steps...')
-        sys.exit(1)
+    condition1_expts = list(meta[meta.Group == condition1].Experiment)
+    condition2_expts = list(meta[meta.Group == condition2].Experiment)
 
-    if os.path.isfile(os.path.join(home_dir,'intergenic','read_in.txt')):
-        print('Read-in information file exists...')
-    else:
-        print('Read-in information file does not exist... Re-run previous analysis steps...')
-        sys.exit(1)
+    return condition1,condition2,condition1_expts,condition2_expts
 
-    #Check input format.
-    print('Checking meta file...')
+'''
+Define a function that can merge read-in information with differential expression output.
+'''
+def read_in_diff_exp(read_in_file,meta_file,conditions_file,out_dir):
 
-    #Check meta file.
-    if os.path.isfile(meta_file):
+    #Get conditons.
+    condition1,condition2,condition1_expts,condition2_expts = get_conditions(conditions_file,meta_file)
 
-        meta = open(meta_file).readlines()
-        meta_format = True
-        groups = []
-        i = 0
-        while i < len(meta) and meta_format:
+    #Load expression data.
+    read_in_exp = pd.read_csv(read_in_file,sep='\t')
 
-            line = meta[i].strip().split('\t')
+    #Get average count/FPKM information for given experiments by condition.
+    keep_cols = ['Gene ID','Transcript ID']
+    for suffix in ['Gene Count','Gene FPKM','Read-In Count']:
+        condition1_cols = [f'{expt} {suffix}' for expt in condition1_expts]
+        read_in_exp[f'{condition1} Average {suffix}'] = read_in_exp[condition1_cols].mean(axis=1)
+        keep_cols.append(f'{condition1} Average {suffix}')
 
-            #If the length of the split line is different than 2, the meta file isn't properly formatted.
-            if len(line) != 2:
-                meta_format = False
+        condition2_cols = [f'{expt} {suffix}' for expt in condition2_expts]
+        read_in_exp[f'{condition2} Average {suffix}'] = read_in_exp[condition2_cols].mean(axis=1)
+        keep_cols.append(f'{condition2} Average {suffix}')
 
-            #Otherwise, ensure that the first line is the proper format.
-            else:
-                if i == 0:
-                    if line[0] != 'Experiment' or line[1] != 'Group':
-                        meta_format = False
-                else:
-                    if line[1] not in groups:
-                        groups.append(line[1])
+    read_in_exp = read_in_exp[keep_cols]
 
-            i += 1
+    #Get the log2 ratio for the gene vs. read-in.
+    read_in_exp[condition1+' Read-In vs. Gene'] = np.log2(read_in_exp[condition1+' Average Read-In Count']+1)-\
+                                                  np.log2(read_in_exp[condition1+' Average Gene Count']+1)
+    read_in_exp[condition2+' Read-In vs. Gene'] = np.log2(read_in_exp[condition2+' Average Read-In Count']+1)-\
+                                                  np.log2(read_in_exp[condition2+' Average Gene Count']+1)
 
-        if meta_format:
-            print('Meta file properly formatted...')
-        else:
-            print('Meta file not properly formatted... Exiting...')
-            sys.exit(1)
+    #Load DESeq2 output.
+    diff_exp = pd.read_csv(conditions_file,sep='\t',index_col=0)
 
-    else:
-        print('Meta file does not exist... Exiting...')
-        sys.exit(1)
+    #Merge expression information and DESeq2 output. Format for output.
+    read_in_full_info = pd.merge(read_in_exp,diff_exp,left_on='Transcript ID',right_index=True)
+    read_in_full_info = read_in_full_info[['Gene ID','Transcript ID','baseMean','log2FoldChange','lfcSE','stat',
+                                           'pvalue','padj',condition1+' Average Gene Count',
+                                           condition1+' Average Gene FPKM',condition1+' Average Read-In Count',
+                                           condition1+' Read-In vs. Gene',condition2+' Average Gene Count',
+                                           condition2+' Average Gene FPKM',condition2+' Average Read-In Count',
+                                           condition2+' Read-In vs. Gene']]
 
-    #Reformat meta file.
-    print('Checking meta file...')
-    if os.path.isfile(os.path.join(home_dir,'preprocess_files','meta.reformatted.txt')) and not overwrite:
-        print('Reformatted meta file exists...')
-    else:
-        print('Reformatting meta file...')
-        reformat_meta(meta_file,os.path.join(home_dir,'preprocess_files'))
+    #Output merged information.
+    read_in_full_info.to_csv(os.path.join(out_dir,f'{condition1}-{condition2}-read_in.txt'),sep='\t',index=False)
 
-    #Reformat/generate comparisons file.
-    print('Checking/generating comparisons file...')
-    if os.path.isfile(comparisons_file):
+'''
+Define a function that can assign read-in genes for upregulated genes given thresholds for log2 fold change, p-value,
+FPKM, and a read-in threshold.
+'''
+def assign_read_in_genes(diff_exp_read_in_file,log2FC,pval,FPKM,read_in_threshold,out_dir):
 
-        print('Comparisons file exists...')
+    #Get conditions.
+    condition1,condition2 = diff_exp_read_in_file.split('/')[-1].split('-')[:2]
 
-        #Check format.
-        comparisons = [line.strip().split('\t') for line in open(comparisons_file).readlines()]
-        comparisons_lens = [len(line) for line in comparisons]
+    #Get upregulated genes.
+    diff_exp_read_in = pd.read_csv(diff_exp_read_in_file,sep='\t')
+    upreg = diff_exp_read_in[(diff_exp_read_in.log2FoldChange > log2FC) & (diff_exp_read_in.padj < pval) &
+                             (diff_exp_read_in[condition1+' Average Gene FPKM'] > FPKM)][
+        ['Gene ID','Transcript ID','log2FoldChange','padj',condition1+' Read-In vs. Gene']].copy()
 
-        #Check if lines are tab-separated formatted.
-        if len(set(comparisons_lens)) == 1 and len(comparisons[0]) == 2:
-
-            membership = [(line[0] in groups and line[1] in groups) for line in comparisons]
-
-            if len(set(membership)) == 1 and membership[0]:
-                comparisons_format = True
-            else:
-                comparisons_format = False
-        else:
-            comparisons_format = False
-
-        #If the file is properly formatted, reformat it. Otherwise, generate an all-by-all file.
-        if comparisons_format:
-            print('Comparisons file properly formatted... Reformatting...')
-            reformat_comparisons(comparisons_file,os.path.join(home_dir,'preprocess_files'))
-        else:
-            print('Comparisons file not properly formatted... Generating all-by-all comparisons file...')
-            generate_comparisons(os.path.join(home_dir,'preprocess_files','meta.reformatted.txt'),
-                                 os.path.join(home_dir,'preprocess_files'))
-
-    else:
-        print('Comparison file does not exist or not provided... Generating comparisons file...')
-        generate_comparisons(os.path.join(home_dir,'preprocess_files','meta.reformatted.txt'),
-                             os.path.join(home_dir,'preprocess_files'))
-
-    #Run DESeq2.
-    print('Check for DESeq2 output...')
-    all_comparisons = True
-    for condition1,condition2 in comparisons:
-        if not os.path.isfile(os.path.join(home_dir,'diff_exp',f'{condition1}-{condition2}-results.txt')):
-            all_comparisons = False
-
-    if all_comparisons and not overwrite:
-        print('DESeq2 results exist...')
-    else:
-        print('Running DESeq2')
-        dds = load_deseq_dataset(os.path.join(home_dir,'quantification','gene.exp.raw.txt'),
-                                 os.path.join(home_dir,'preprocess_files','meta.reformatted.txt'))
-        dds_results = run_deseq(dds)
-
-        #Create differential expression directory.
-        if os.path.isdir(os.path.join(home_dir,'diff_exp')):
-            print('Differential expression directory exists...')
-        else:
-            print('Creating differential expression directory...')
-            os.mkdir(os.path.join(home_dir,'diff_exp'))
-
-        #Output results.
-        print('Output DESeq2 results...')
-        for condition1,condition2 in comparisons:
-            deseq_results(dds_results,condition1,condition2,os.path.join(home_dir,'diff_exp'))
-
-    #Create differential expression with read-in information directory.
-    print('Check for differential expression joined with read-in information as well as read-in gene assignments...')
-    all_read_in = True
-    for condition1,condition2 in comparisons:
-        if not os.path.isfile(os.path.join(home_dir,'diff_exp_read_in',f'{condition1}-{condition2}-read_in.txt')) or \
-                not os.path.isfile(os.path.join(home_dir,'diff_exp_read_in',
-                                                f'{condition1}-{condition2}-read_in_assignment.txt')):
-            all_read_in = False
-
-    if all_read_in and not overwrite:
-        print('Differential expression with read-in information and read-in gene assignments exist...')
-    else:
-
-        if os.path.isdir(os.path.join(home_dir,'diff_exp_read_in')):
-            print('Differential expression with read-in information directory exists...')
-        else:
-            print('Creating differential expression with read-in information directory...')
-            os.mkdir(os.path.join(home_dir,'diff_exp_read_in'))
-
-        #Join differential expression information to read-in information. Use this to infer read-in genes.
-        print('Combining differential expression results and read-in information... Inferring read-in genes for '+\
-              f'upregulated genes with log2 fold change > {log2FC}, p-value < {pval}, and FPKM > {fpkm}... Read-in '+\
-              f'level threshold is {read_in_threshold}...')
-
-        for condition1,condition2 in comparisons:
-
-            read_in_diff_exp(os.path.join(home_dir,'intergenic/read_in.txt'),
-                             os.path.join(home_dir,'preprocess_files/meta.reformatted.txt'),
-                             os.path.join(home_dir,'diff_exp',f'{condition1}-{condition2}-results.txt'),
-                             os.path.join(home_dir,'diff_exp_read_in'))
-
-            assign_read_in_genes(os.path.join(home_dir,'diff_exp_read_in',f'{condition1}-{condition2}-read_in.txt'),
-                                 log2FC,pval,fpkm,read_in_threshold,os.path.join(home_dir,'diff_exp_read_in'))
-
-if __name__ == '__main__':
-    main(sys.argv[1:])
+    #Make assignments.
+    upreg['Assignment'] = 'Primary Induction'
+    read_in_index = upreg[upreg[condition1+' Read-In vs. Gene'] > read_in_threshold].index
+    upreg.loc[read_in_index,'Assignment'] = 'Read-In'
+    upreg.to_csv(os.path.join(out_dir,f'{condition1}-{condition2}-read_in_assignment.txt'),sep='\t',index=False)

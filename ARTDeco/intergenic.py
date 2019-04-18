@@ -1,153 +1,180 @@
 '''
-Script that can run the intergenic mode.
+Module that contains functions for intergenic mode.
 '''
-from ARTDeco.modules.misc import infer_experiments_group,output_inferred_format,get_regions_exp
-from ARTDeco.modules.intergenic import get_multi_gene_exp,get_max_isoform,get_gene_v_intergenic,assign_genes
-
-import sys
+import subprocess
 import os
+from multiprocessing import Pool
+from .misc import load_exp
+import functools
+import pandas as pd
+import numpy as np
 
-def main(argv):
+'''
+Define a function that can get the gene expression given a tag directory, a GTF file, a normalization method, and 
+strandedness.
+'''
+def get_gene_exp(args):
 
-    home_dir = argv[0]
-    gtf_file = argv[1]
-    cpu = int(argv[2])
-    read_in_threshold = float(argv[3])
-    read_in_fpkm = float(argv[4])
-    overwrite = bool(argv[5] == 'True')
+    tag_directory,gtf_file,norm,stranded,out_file = args
 
-    #Grab tag directories based upon input bam files
-    tag_dirs = []
-    bam_files = []
-    for f in os.listdir(home_dir):
-        if f[-4:] == '.bam':
-            tag_dirs.append(os.path.join(home_dir,'preprocess_files',f[:-4]))
-            bam_files.append(f)
+    if stranded:
+        strand = ['+']
+    else:
+        strand = ['both']
 
-    #Check that the prerequisites exist.
-    print('Checking prerequisites...')
-    if os.path.isdir(os.path.join(home_dir,'preprocess_files')):
-        if os.path.isfile(os.path.join(home_dir,'preprocess_files','genes.full.bed')) and \
-                os.path.isfile(os.path.join(home_dir,'preprocess_files','gene_to_transcript.txt')):
-            print('Necessary gene annotation files exist...')
+    f = open(out_file,'w')
+    subprocess.call(['analyzeRepeats.pl',gtf_file,'none',norm,'-strand']+strand+['-count','genes','-d',tag_directory],
+                    stdout=f,stderr=subprocess.PIPE)
+    f.close()
+
+'''
+Define a function that can get the gene expression (both normalized and un-normalized) given a list of tag directories, 
+a GTF file, and strandedness. 
+'''
+def get_multi_gene_exp(tag_dirs,gtf_file,stranded,out_dir,cpu):
+
+    #Format and run commands for getting initial gene expression.
+    cmds = []
+    for norm in ['-raw','-fpkm']:
+        cmds += [(tag_dir,gtf_file,norm,stranded,os.path.join(out_dir,tag_dir.split('/')[-1]+f'.{norm[1:]}.txt'))
+                for tag_dir in tag_dirs]
+
+    pool = Pool(processes=min(len(cmds),cpu))
+    pool.map(get_gene_exp,cmds)
+    pool.close()
+
+    #Join all of these files together.
+    raw_dfs = []
+    fpkm_dfs = []
+    for y in [x[-1] for x in cmds]:
+        if y[-7:] == 'raw.txt':
+            raw_dfs.append(load_exp(y))
+            os.remove(y)
         else:
-            print('Necessary gene annotation files do not exist... Please run preprocessing mode... Exiting...')
-            sys.exit(1)
+            fpkm_dfs.append(load_exp(y))
+            os.remove(y)
 
-        if os.path.isfile(os.path.join(home_dir,'preprocess_files','read_in.bed')) and \
-                os.path.isfile(os.path.join(home_dir,'preprocess_files','readthrough.bed')):
-            print('Intergenic BED files exist...')
-        else:
-            print('At least one of the intergenic BED files does not exist... Please run preprocessing mode... \
-            Exiting...')
+    raw_df = functools.reduce(lambda x,y: pd.merge(x,y,on=['ID','Length']),raw_dfs)
+    raw_df = raw_df[['ID','Length']+sorted(raw_df.columns[2:])]
+    fpkm_df = functools.reduce(lambda x,y: pd.merge(x,y,on=['ID','Length']),fpkm_dfs)
+    fpkm_df = fpkm_df[['ID','Length']+sorted(fpkm_df.columns[2:])]
 
-        for tag_dir in tag_dirs:
+    raw_df.to_csv(os.path.join(out_dir,'gene.exp.raw.txt'),sep='\t',index=False)
+    fpkm_df.to_csv(os.path.join(out_dir,'gene.exp.fpkm.txt'),sep='\t',index=False)
 
-            if not os.path.isdir(tag_dir):
-                print('Tag directories missing... Please run preprocessing mode... Exiting...')
-                sys.exit(1)
-        print('All tag directories exist...')
+'''
+Define a function that can get the maximum isoform for all genes when given a gene expression file and a 
+gene-to-transcript mapping.
+'''
+def get_max_isoform(gene_exp_file,gene_to_transcript_file,out_dir):
 
-    else:
-        print('Preprocessing files do not exist... Please run preprocessing mode... Exiting...')
-        sys.exit(1)
+    #Load gene expression file into dataframe.
+    gene_exp = pd.read_csv(gene_exp_file,sep='\t')
+    del gene_exp['Length']
+    gene_exp = gene_exp.set_index('ID')
 
-    #Check if user-supplied GTF file exists.
-    if os.path.isfile(gtf_file):
-        print('GTF file exists...')
-    else:
-        print('Invalid GTF file supplied... Exiting...')
-        sys.exit(1)
+    #Get max expression.
+    gene_exp['Max Exp'] = gene_exp.max(axis=1)
 
-    #Create quantification directory.
-    if os.path.isdir(os.path.join(home_dir,'quantification')):
-        print('Quantification directory exists...')
-    else:
-        print('Creating quantification directory...')
-        os.mkdir(os.path.join(home_dir,'quantification'))
+    #Load gene-to-transcript mapping.
+    gene_to_transcript = pd.read_csv(gene_to_transcript_file,sep='\t')
 
-    #Create quantification directory.
-    if os.path.isdir(os.path.join(home_dir,'intergenic')):
-        print('Intergenic vs. gene expression directory exists...')
-    else:
-        print('Creating intergenic vs. gene expression directory...')
-        os.mkdir(os.path.join(home_dir,'intergenic'))
+    #Get maximum expression for each gene.
+    gene_exp = pd.merge(gene_to_transcript,gene_exp,left_on='Transcript ID',right_index=True)
+    max_exp = pd.DataFrame(gene_exp['Max Exp'].groupby(gene_exp['Gene ID']).max())
+    max_exp = max_exp.reset_index()
 
-    #Infer formats of BAM files.
-    print('Inferring file formats...')
-    formats = infer_experiments_group([os.path.join(home_dir,bam_file) for bam_file in bam_files],
-                                      os.path.join(home_dir,'preprocess_files','genes.full.bed'),
-                                      min(cpu,len(bam_files)))
+    #Find and store max isoform.
+    max_isoform_df = pd.merge(gene_exp,max_exp,left_on=['Gene ID','Max Exp'],right_on=['Gene ID','Max Exp'])
+    max_isoform_df = pd.DataFrame(max_isoform_df.groupby('Gene ID').max()['Transcript ID'])
+    max_isoform_df = pd.merge(max_isoform_df,gene_to_transcript,on=['Gene ID','Transcript ID'])
 
-    #Check that all of the BAM files are of the same format.
-    if len(set(x[1] for x in formats)) == 1 and len(set(x[2] for x in formats)) == 1 and \
-            len(set(x[3] for x in formats)) == 1:
+    #Output dataframe.
+    max_isoform_df.to_csv(os.path.join(out_dir,'max_isoform.txt'),sep='\t',index=False)
 
-        pe = formats[0][1]
-        stranded = formats[0][2]
-        flip = formats[0][3]
+'''
+Define a function that can get the gene vs. intergenic information as formatted for output.
+'''
+def get_gene_v_intergenic(gene_count_file,gene_fpkm_file,max_isoform_file,intergenic_count_file,mode,out_file):
 
-        out_str = 'All BAM files are '+output_inferred_format(formats[0])
+    #Load gene expression information for maximum isoform.
+    gene_count = pd.read_csv(gene_count_file,sep='\t')
+    expts = sorted(gene_count.columns[2:])
+    gene_fpkm = pd.read_csv(gene_fpkm_file,sep='\t')
+    gene_exp = pd.merge(gene_count,gene_fpkm,on=['ID','Length'],suffixes=(' Gene Count',' Gene FPKM'))
+    max_isoform = pd.read_csv(max_isoform_file,sep='\t')
+    gene_exp = pd.merge(max_isoform,gene_exp,left_on='Transcript ID',right_on='ID')
+    del gene_exp['ID']
 
-        print(out_str)
+    #Load downstream counts.
+    intergenic_count = pd.read_csv(intergenic_count_file,sep='\t')
 
-    else:
-        print('Error... One or more files do not match in inferred format... Exiting...')
+    #Normalize counts by length.
+    median_length = np.median(gene_exp.Length.append(intergenic_count.Length))
 
-        for f in formats:
+    for col in gene_exp.columns:
+        if 'Count' in col:
+            gene_exp[col] = (gene_exp[col]/gene_exp.Length)*median_length
+            gene_exp[col[:-10]+'log2 Gene Count'] = np.log2(gene_exp[col]+1)
+    del gene_exp['Length']
 
-            out_str = f'BAM file {f[0]} inferred as '+output_inferred_format(f)
+    for col in intergenic_count.columns[2:]:
+        intergenic_count[f'{col} {mode} Count'] = (intergenic_count[col]/intergenic_count.Length)*median_length
+        intergenic_count[f'{col} log2 {mode} Count'] = np.log2(intergenic_count[f'{col} {mode} Count']+1)
+        del intergenic_count[col]
+    del intergenic_count['Length']
 
-            print(out_str)
+    #Join gene and intergenic information.
+    gene_w_intergenic = pd.merge(gene_exp,intergenic_count,left_on='Gene ID',right_on='ID')
+    del intergenic_count['ID']
 
-            sys.exit(1)
+    #Get downstream vs. gene log2 ratio.
+    for expt in expts:
+        gene_w_intergenic[f'{expt} log2Ratio {mode} vs. Gene'] = gene_w_intergenic[f'{expt} log2 {mode} Count']-\
+                                                                 gene_w_intergenic[expt+' log2 Gene Count']
+        del gene_w_intergenic[f'{expt} log2 {mode} Count']
+        del gene_w_intergenic[expt+' log2 Gene Count']
 
-    #Check if gene expression and maximum isoform files exist. If one of them does not, create all three.
-    if os.path.isfile(os.path.join(home_dir,'quantification','gene.exp.raw.txt')) and \
-            os.path.isfile(os.path.join(home_dir,'quantification','gene.exp.fpkm.txt')) and \
-            os.path.isfile(os.path.join(home_dir,'quantification','max_isoform.txt')) and not overwrite:
-        print('Gene expression files exist...')
-    else:
-        print('Generating gene expression and maximum isoform files...')
-        get_multi_gene_exp(tag_dirs,gtf_file,stranded,os.path.join(home_dir,'quantification'),cpu)
-        get_max_isoform(os.path.join(home_dir,'quantification','gene.exp.fpkm.txt'),
-                        os.path.join(home_dir,'preprocess_files','gene_to_transcript.txt'),
-                        os.path.join(home_dir,'quantification'))
+    #Reorder columns for output.
+    new_cols = ['Gene ID','Transcript ID']
+    for expt in expts:
+        new_cols += [expt+' Gene Count',expt+' Gene FPKM',f'{expt} {mode} Count',f'{expt} log2Ratio {mode} vs. Gene']
+    gene_w_intergenic = gene_w_intergenic[new_cols]
 
-    #Check if read-in and readthrough expression files exist. If one of them does not, create both of them.
-    if os.path.isfile(os.path.join(home_dir,'quantification','read_in.exp.txt')) and \
-            os.path.isfile(os.path.join(home_dir,'quantification','readthrough.exp.txt')) and not overwrite:
-        print('Intergenic expression files exist...')
-    else:
-        print('Generating intergenic expression files...')
-        get_regions_exp((tag_dirs,os.path.join(home_dir,'preprocess_files','read_in.bed'),stranded,'-raw',
-                         os.path.join(home_dir,'quantification'),min(len(tag_dirs),cpu)))
-        get_regions_exp((tag_dirs,os.path.join(home_dir,'preprocess_files','readthrough.bed'),stranded,'-raw',
-                         os.path.join(home_dir,'quantification'),min(len(tag_dirs),cpu)))
+    gene_w_intergenic.to_csv(out_file,sep='\t',index=False)
 
-    #Check if intergenic vs. gene expression files exist. IF one of them does not, create both of them.
-    if os.path.isfile(os.path.join(home_dir,'intergenic','read_in.txt')) and \
-            os.path.isfile(os.path.join(home_dir,'intergenic','readthrough.txt')) and \
-            os.path.isfile(os.path.join(home_dir,'intergenic','read_in_assignments.txt')) and not overwrite:
-        print('Intergenic vs. gene expression files and read-in gene assignments exist...')
-    else:
-        print(f'Generating intergenic vs. expression files and read-in gene assignments... Read-in level threshold is'+\
-              f' {read_in_threshold} and read-in FPKM threshold is {read_in_fpkm}...')
+'''
+Define a function that can take in a read-in vs. gene expression file and output a dataframe of primary induction and
+read-in gene assignments.
+'''
+def assign_genes(read_in_file,read_in_threshold,read_in_fpkm,out_file):
 
-        get_gene_v_intergenic(os.path.join(home_dir,'quantification','gene.exp.raw.txt'),
-                              os.path.join(home_dir,'quantification','gene.exp.fpkm.txt'),
-                              os.path.join(home_dir,'quantification','max_isoform.txt'),
-                              os.path.join(home_dir,'quantification','read_in.raw.txt'),'Read-In',
-                              os.path.join(home_dir,'intergenic','read_in.txt'))
+    #Load read-in information.
+    read_in_df = pd.read_csv(read_in_file,sep='\t')
 
-        get_gene_v_intergenic(os.path.join(home_dir,'quantification','gene.exp.raw.txt'),
-                              os.path.join(home_dir,'quantification','gene.exp.fpkm.txt'),
-                              os.path.join(home_dir,'quantification','max_isoform.txt'),
-                              os.path.join(home_dir,'quantification','readthrough.raw.txt'),'Readthrough',
-                              os.path.join(home_dir,'intergenic','readthrough.txt'))
+    #Get experiments.
+    expts = list(sorted(set([x.split()[0] for x in read_in_df.columns[2:]])))
 
-        assign_genes(os.path.join(home_dir,'intergenic','read_in.txt'),read_in_threshold,read_in_fpkm,
-                     os.path.join(home_dir,'intergenic','read_in_assignments.txt'))
+    #For each experiment, infer read-in genes.
+    expt_dfs = []
+    for expt in expts:
 
-if __name__ == '__main__':
-    main(sys.argv[1:])
+        #Get columns for experiment.
+        cols = ['Gene ID','Transcript ID',expt+' Gene FPKM',expt+' log2Ratio Read-In vs. Gene']
+        expt_df = read_in_df[cols].copy()
+
+        #Assign read-in genes.
+        expt_df[expt+' Assignment'] = 'N/A'
+        primary_induction = expt_df[(expt_df[expt+' Gene FPKM'] > read_in_fpkm) &
+                                    (expt_df[expt+' log2Ratio Read-In vs. Gene'] < read_in_threshold)].index
+        read_in = expt_df[(expt_df[expt+' Gene FPKM'] > read_in_fpkm) &
+                          (expt_df[expt+' log2Ratio Read-In vs. Gene'] > read_in_threshold)].index
+        expt_df.loc[primary_induction,expt+' Assignment'] = 'Primary Induction'
+        expt_df.loc[read_in,expt+' Assignment'] = 'Read-In'
+        del expt_df[expt+' Gene FPKM']
+
+        expt_dfs.append(expt_df)
+
+    #Join these dataframes.
+    inference_df = functools.reduce(lambda x,y: pd.merge(x,y,on=['Gene ID','Transcript ID']),expt_dfs)
+    inference_df.to_csv(out_file,sep='\t',index=False)

@@ -24,10 +24,11 @@ setup(
         'Topic :: Software Development :: Libraries'
         'Topic :: Scientific/Engineering :: Bio-Informatics'],
     install_requires=[
-        'pandas',
-        'rpy2',
-        'numpy',
-        'bx-python',
-        'RSeQC',
+        'pandas>=0.24.2',
+        'rpy2>=2.9.4',
+        'numpy>=1.16.2',
+        'bx-python>=0.8.2',
+        'RSeQC>=3.0.0',
     ],
+    include_package_data = True
 )

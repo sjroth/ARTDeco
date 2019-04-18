@@ -1,5 +1,5 @@
 '''
-Module that contains functions for running a basic DESeq2 script. Used for both diff_exp_read_in and diff_exp_dogs
+Module that contains functions for running basic DESeq2 operations. Used for both diff_exp_read_in and diff_exp_dogs
 modes.
 '''
 import pandas as pd
