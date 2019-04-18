@@ -1,7 +1,7 @@
-#Automatic Readthrough Transcription DEteCtiOn: ARTDeco
+# Automatic Readthrough Transcription DEteCtiOn: ARTDeco
 ARTDeco is a pipeline for analyzing and characterizing transcriptional readthrough as described in Roth et al. (2019, in preparation). Broadly, ARTDeco functions to process a set of BAM files such that transcriptional readthrough can be quantified via a variety of measures including read-in levels, readthrough levels, downstream of gene (DoG) transcript detection, and inference of read-in genes.
-##Getting started
-###Prerequisites
+## Getting started
+### Prerequisites
 ARTDeco is a Python package that requires Python 3.6 or higher. Additionally, the following packages are required:
 ```
 setuptools
