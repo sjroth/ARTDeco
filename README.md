@@ -61,6 +61,7 @@ The comparisons file is not strictly necessary and ARTDeco will generate one. Ho
 
 ARTDeco will automatically reformat these files when running any differential expression so that they play well with DESeq2. 
 
-The only remaining requirement in terms of files is that you place all of your BAM files in a directory. ARTDeco will generate a directory structure (discussed in the **Interpreting ARTDeco Outputs** section) around these files.
+The only remaining requirement in terms of files is that you place all of your BAM files in a directory. ARTDeco will generate a directory structure (discussed in the [Interpreting ARTDeco Outputs](#interpreting-artdeco-outputs) section) around these files.
 ## Running ARTDeco
 In this section, standard usage for ARTDeco will be outlined. The next section will explain how to interpret outputs.
+## Interpreting ARTDeco Outputs
