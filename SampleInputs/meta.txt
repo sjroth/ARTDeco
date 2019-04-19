@@ -1,0 +1,7 @@
+Experiment	Group
+Sample26.MDM-RNAseq-Mock-06h-r3	Mock
+Sample27.MDM-RNAseq-Mock-06h-r4	Mock
+Sample28.MDM-RNAseq-H5N1-06h-r3	H5N1
+Sample29.MDM-RNAseq-H5N1-06h-r4	H5N1
+Sample30.MDM-RNAseq-dNS1-06h-r1	dNS1
+Sample31.MDM-RNAseq-dNS1-06h-r2	dNS1

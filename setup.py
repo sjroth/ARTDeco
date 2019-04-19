@@ -21,13 +21,13 @@ setup(
         'Programming Language :: Python :: 3',
         'Operating System :: MacOS :: MacOS X',
         'Operating System :: POSIX',
-        'Topic :: Software Development :: Libraries'
+        'Topic :: Software Development :: Libraries',
         'Topic :: Scientific/Engineering :: Bio-Informatics'],
     install_requires=[
+        'bx-python>=0.8.2',
+        'numpy>=1.16.2',
         'pandas>=0.24.2',
         'rpy2>=2.9.4',
-        'numpy>=1.16.2',
-        'bx-python>=0.8.2',
         'RSeQC>=3.0.0',
     ],
     include_package_data = True

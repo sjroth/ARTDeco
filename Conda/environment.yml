@@ -1,0 +1,15 @@
+name: ARTDeco
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - bedops=2.4.*
+  - bioconductor-deseq2=1.20.*
+  - bx-python=0.8.*
+  - homer=4.9.*
+  - numpy=1.16.*
+  - pandas=0.24.*
+  - pybigwig
+  - python=3.6.*
+  - rpy2=2.9.*
+  - samtools=1.*
