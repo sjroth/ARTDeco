@@ -29,22 +29,28 @@ def main():
     parser.add_argument('-gtf-file',help='GTF file',action='store',default='.')
     parser.add_argument('-cpu',help='Maximum CPUs to use',action='store',type=int,default=1)
     parser.add_argument('-chrom-sizes-file',help='Chromosome sizes file',action='store',default='.')
-    parser.add_argument('-read-in-dist',help='Read-in distance',type=int,default=1000)
-    parser.add_argument('-readthrough-dist',help='Readthrough distance',type=int,default=5000)
-    parser.add_argument('-intergenic-min-len',help='Minimum length for intergenic regions',type=int,default=100)
-    parser.add_argument('-intergenic-max-len',help='Maximum length for intergenic regions',type=int,default=15000)
-    parser.add_argument('-read-in-threshold', help='Threshold for considering read-in gene',type=float,default=0)
-    parser.add_argument('-read-in-fpkm',help='Minimum FPKM value for considering a gene',type=float,default=0.25)
+    parser.add_argument('-read-in-dist',help='Read-in distance. Default is 1 kb.',type=int,default=1000)
+    parser.add_argument('-readthrough-dist',help='Readthrough distance. Default is 5 kb.',type=int,default=5000)
+    parser.add_argument('-intergenic-min-len',help='Minimum length for intergenic regions. Default is 100 bp.',type=int,
+                        default=100)
+    parser.add_argument('-intergenic-max-len',help='Maximum length for intergenic regions. Default is 15 kb.',type=int,
+                        default=15000)
+    parser.add_argument('-read-in-threshold', help='Threshold for considering read-in gene. Default is 0.',type=float,
+                        default=0)
+    parser.add_argument('-read-in-fpkm',help='Minimum FPKM value for considering a gene. Default is 0.25 FPKM.',
+                        type=float,default=0.25)
     parser.add_argument('-overwrite',help='Indicate whether to overwrite existing files',default=False,
                         action='store_true')
     parser.add_argument('-meta-file',help='Meta file',action='store',type=str,default='.')
     parser.add_argument('-comparisons-file',help='Comparisons file',type=str,default='.')
-    parser.add_argument('-log2FC', help='Minimum log2 fold change for considering a gene upregulated',type=float,
-                        default=2)
-    parser.add_argument('-pval', help='Maximum p-value for considering a gene upregulated',type=float,default=0.05)
-    parser.add_argument('-min-dog-len',help='Minimum DoG length',type=int,default=4000)
-    parser.add_argument('-dog-window',help='DoG window size',type=int,default=500)
-    parser.add_argument('-min_dog_coverage',help='Minimum FPKM for DoG discovery',type=float,default=0.1)
+    parser.add_argument('-log2FC', help='Minimum log2 fold change for considering a gene upregulated. Default is 2.',
+                        type=float,default=2)
+    parser.add_argument('-pval', help='Maximum p-value for considering a gene upregulated. Default is 0.05.',type=float,
+                        default=0.05)
+    parser.add_argument('-min-dog-len',help='Minimum DoG length. Default is 4 kb.',type=int,default=4000)
+    parser.add_argument('-dog-window',help='DoG window size. Default is 500 bp.',type=int,default=500)
+    parser.add_argument('-min-dog-coverage',help='Minimum FPKM for DoG discovery. Default is 0.1 FPKM.',type=float,
+                        default=0.1)
     args = parser.parse_known_args()[0]
 
     print(f'Running {args.mode} mode...')
