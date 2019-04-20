@@ -114,7 +114,7 @@ max_isoform.txt -- Maximum isoform for each gene.
 read_in.raw.txt -- Raw counts for read-in regions.
 readthrough.raw.txt -- Raw counts for readthrough/downstream regions.
 ---Intergenic files---
-read_in_assignments.txt -- Assignment of read-in genes with read-in level for each experiment.
+read_in_assignments.txt -- Assignment of primary induction and read-in genes with read-in level for each experiment.
 read_in.txt -- Combination of gene expression and read-in quantification information. Contains read-in levels.
 readthrough.txt -- Combination of gene expression and readthrough quantification information. Contains readthrough levels.
 ```
@@ -250,8 +250,39 @@ Before focusing on those specific files, let's go over the directory structure t
 ```
 Now, let's go through the files that are most relevant to interpreting findings on transcriptional readthrough.
 ### Preprocessing files
-The main files to understand section are the read_in.bed and readthrough.bed files. These are standard BED format files. These regions are defined by parameters in [preprocess](#preprocessing-mode) mode. Here is a diagram of how these regions relate to a given gene annotation:
+The main files to understand section are the read_in.bed and readthrough.bed files. These are standard BED format files that are used for quantification downstream. These regions are defined by parameters in [preprocess](#preprocessing-mode) mode. Here is a diagram of how these regions relate to a given gene annotation:
 ![alt text](Diagrams/IntergenicDiagram.png)
+### Intergenic files
+read_in.txt and readthrough.txt are tab-delimited files that combine gene expression information with read-in and readthrough information for all of the experiments. The format for readthrough.txt is as follows where Sample1.bam is a user-supplied BAM file:
+``` 
+Gene ID Transcript ID   Sample1 Gene Count  Sample1 Gene FPKM   Sample1 Readthrough Count   Sample1 log2Ratio Readthrough vs. Gene
+ENSG00000000003 ENST00000373020.8   25.31821533923304   0.073   0.0 -4.717989756888586
+```
+This pattern is continued for all samples. Each Gene ID/Transcript ID represents the maximally expressed isoform of the gene. The log2Ratio Readthrough vs. Gene column represents the readthrough level. For read-in values, the format is the same except the 4th column for each sample is log2Ratio Read-In vs. Gene (representing the read-in level). 
+
+read_in_assignments.txt is also a tab-delimited file that gives assignments of primary induction and read-in genes given an FPKM threshold (for being considered sufficiently expressed for classification) and a read-in level threshold. The format for read_in_assignments.txt is as follows where Sample1.bam is a user-supplied BAM file:
+``` 
+Gene ID	Transcript ID	Sample1 log2Ratio Read-In vs. Gene	Sample1 Assignment
+ENSG00000078098	ENST00000493182.1   0.12985045354144553 Read-In
+```
+### Differential expression with read-in information files
+These files are similar to the read-in files presented [above](#intergenic-files) except with the addition of differential expression information. Here is the format for Condition1 and Condition2 in an experimental setup for Condition1-Condition2-read_in.txt:
+```
+Gene ID	Transcript ID	baseMean	log2FoldChange	lfcSE	stat	pvalue	padj	Condition1 Average Gene Count	Condition1 Average Gene FPKM	Condition1 Average Read-In Count	Condition1 Read-In vs. Gene	Condition2 Average Gene Count	Condition2 Average Gene FPKM	Condition2 Average Read-In Count	Condition2 Read-In vs. Gene
+ENSG00000000003	ENST00000373020.8	22.48700673497269	-0.09573036928300477	0.6833548748335975	-0.1400888071608707	0.8885898239774688	0.9316616219680052	19.457227138643070.026500000000000003	1.251052395879982	-3.1839390664755927	27.469026548672566	0.0765	1.251052395879982	-3.6607216206385216
+```
+Similarly, here is the format for Condition1-Condition2-read_in_assignments.txt:
+``` 
+Gene ID	Transcript ID	log2FoldChange	padj	Condition1 Read-In vs. Gene	Assignment
+ENSG00000000971	ENST00000470918.1	2.7213205249230485	1.832392496818623e-06	-7.642135066085642	Primary Induction
+```
+### DoG files
+A DoG transcript (shortened to DoG) is a transcript that extends beyond the annotated transcription termination site. ARTDeco scans for DoGs by scanning the tag density (as measured by FPKM) in the downstream region of genes in user-specified window. What makes ARTDeco unique is that it leverages read-in levels to infer whether a downstream gene has significant readthrough when scanning these regions. Thus, DoG transcripts can extend several genes. Here is a diagram of the basic concept behind DoG transcript discovery:
+![alt text](Diagrams/DoGDiagram.png)
+The dogs directory contains BED files of DoGs for each experiment (the naming convention is BAM_PREFIX.dogs.bed where BAM_PEFIX.bam is our BAM file) as well as a merged file called all_dogs.bed. This merged file contains all discovered DoGs from all experiments. When a DoG appears in multiple experiments, the longest discovered version is used.
+
+There are also quantification files for each set of DoGs (for each experiment and across all experiments) with both raw counts and FPKM. These are tab-delimited files that contain the ID (gene name) for the DoG, the length of the DoG (as rendered by Homer), and the expression value for the experiment(s).
+### Differential expression for DoG
 ## Assorted Usage Notes
 ## Author/Support
 Samuel J. Roth [sjroth@eng.ucsd.edu](mailto:sjroth@eng.ucsd.edu), PhD Candidate, [Benner Lab](http://homer.ucsd.edu/BennerLab/), UCSD Department of Medicine
