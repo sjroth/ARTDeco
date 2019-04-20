@@ -279,6 +279,7 @@ ENSG00000000971	ENST00000470918.1	2.7213205249230485	1.832392496818623e-06	-7.64
 ### DoG files
 A DoG transcript (shortened to DoG) is a transcript that extends beyond the annotated transcription termination site. ARTDeco scans for DoGs by scanning the tag density (as measured by FPKM) in the downstream region of genes in user-specified window. What makes ARTDeco unique is that it leverages read-in levels to infer whether a downstream gene has significant readthrough when scanning these regions. Thus, DoG transcripts can extend several genes. Here is a diagram of the basic concept behind DoG transcript discovery:
 ![alt text](Diagrams/DoGDiagram.png)
+
 The dogs directory contains BED files of DoGs for each experiment (the naming convention is BAM_PREFIX.dogs.bed where BAM_PEFIX.bam is our BAM file) as well as a merged file called all_dogs.bed. This merged file contains all discovered DoGs from all experiments. When a DoG appears in multiple experiments, the longest discovered version is used.
 
 There are also quantification files for each set of DoGs (for each experiment and across all experiments) with both raw counts and FPKM. These are tab-delimited files that contain the ID (gene name) for the DoG, the length of the DoG (as rendered by Homer), and the expression value for the experiment(s).
