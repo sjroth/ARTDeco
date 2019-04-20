@@ -284,6 +284,19 @@ The dogs directory contains BED files of DoGs for each experiment (the naming co
 
 There are also quantification files for each set of DoGs (for each experiment and across all experiments) with both raw counts and FPKM. These are tab-delimited files that contain the ID (gene name) for the DoG, the length of the DoG (as rendered by Homer), and the expression value for the experiment(s).
 ### Differential expression for DoG
+Using the quantification of all_dogs.bed (i.e., all_dogs.raw.txt) as well as the earlier described meta and comparison files, ARTDeco will perform differential expression analysis with DESeq2 and output results for specified comparisons in a tab-delimited file. Here is the format for Condition1 and Condition2 in an experimental setup for Condition1-Condition2-results.txt:
+``` 
+	baseMean	log2FoldChange	lfcSE	stat	pvalue	padj
+ENSG00000086300	4433.294680707477	3.651205201831191	0.2574798821695928	14.180545567541749	1.2090294748081953e-45	5.162555857430994e-44
+```
+For the sake of results, it is important to note the caveat of merging DoGs in the all_dogs.bed file: ARTDeco takes the longest possible DoG from the individual samples for a given gene. This can affect interpretation.
 ## Assorted Usage Notes
+ARTDeco can theoretically take any genomic data that reflects the transcriptional state. This includes polyA-RNAseq, total RNAseq, RNA PolII ChIPseq, mNETseq, GROseq, etc. However, it should be noted that strand-specific data is preferable where possible. The lack of strandedness lowers the number of possible read-in and readthrough genes (because the transcriptional signal can come from either direction). Additionally, DoG finding is unlikely to work well because of similar issues.
+
+Another consideration is the characteristics of your data. The default settings tend to work well for stranded total RNAseq, but be sure to examine your own data to see if the assumptions fit. For example, when using RNA PolII ChIPseq, it is wise to set the readthrough distance to longer than default because that data typically has increased signal downstream of annotated transcription termination sites. This highlights the need for understanding the nature of your data prior to applying a computational technique (always a good practice).
+
+The distribution of read-in and readthrough levels is generally reflective of total level of transcriptional readthrough present in a dataset. With this in mind, the median readthrough level is a good potential summary statistic for quantifying readthrough. However, you may want to filter for higher expressing genes as this leaves you less liable to fall victim to sources of error due to gene annotation and noise.
+
+If there are other concerns, I'll add them here.
 ## Author/Support
 Samuel J. Roth [sjroth@eng.ucsd.edu](mailto:sjroth@eng.ucsd.edu), PhD Candidate, [Benner Lab](http://homer.ucsd.edu/BennerLab/), UCSD Department of Medicine
