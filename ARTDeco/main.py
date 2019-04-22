@@ -222,6 +222,9 @@ def main():
                 generate_comparisons(os.path.join(args.home_dir,'preprocess_files','meta.reformatted.txt'),
                                      os.path.join(args.home_dir,'preprocess_files'))
 
+        comparisons = [line.strip().split('\t') for line in
+                       open(os.path.join(args.home_dir,'preprocess_files','comparisons.reformatted.txt')).readlines()]
+
     #If the program is running in preprocess or get_dogs mode, check if the chromosome sizes file exists.
     #Load chromosome sizes file.
     if args.mode in ['preprocess','get_dogs']:
