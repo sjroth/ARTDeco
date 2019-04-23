@@ -121,7 +121,7 @@ def main():
             for f in formats:
                 out_str = f'BAM file {f[0]} inferred as '+output_inferred_format(f)
                 print(out_str)
-                sys.exit(1)
+            sys.exit(1)
 
     #If the program is running in intergenic or get_dogs mode, check for existence of tag directories.
     if args.mode in ['intergenic','get_dogs']:
