@@ -534,7 +534,7 @@ def make_tag_directory(args):
     if flip:
         cmds.append('-flip')
     if pe and stranded:
-        cmds.append('-sspe ')
+        cmds.append('-sspe')
 
     #Call Homer.
     p = subprocess.Popen(['makeTagDirectory',tag_directory,bam_file]+cmds,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
