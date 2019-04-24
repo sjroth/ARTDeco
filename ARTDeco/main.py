@@ -53,7 +53,11 @@ def main():
                         default=0.1)
     args = parser.parse_known_args()[0]
 
-    print(f'Running {args.mode} mode...')
+    if args.mode in ['preprocess','intergenic','get_dogs','diff_exp_read_in','diff_exp_dogs']:
+        print(f'Running {args.mode} mode...')
+    else:
+        print('Invalid run mode specified... Please choose from preprocess, intergenic, get_dogs, diff_exp_read_in, '+
+              'or diff_exp_dogs')
 
     #Check home directory for BAM files. Store all BAMs and patterns for tag directories.
     no_bams = True
