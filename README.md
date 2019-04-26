@@ -89,11 +89,11 @@ All of these files reside in the preprocess_files directory.
 
 You can run preprocessing using the following command:
 ``` 
-ARTDeco -mode preprocessing -gtf-file GTF_FILE -chrom-sizes-file CHROM_SIZES_FILE [-home-dir HOME_DIR -cpu CPU -read-in-dist READ_IN_DIST -readthrough-dist READTHROUGH_DIST -intergenic-min-len INTERGENIC_MIN_LEN -intergenic-max-len INTERGENIC_MAX_LEN]
+ARTDeco -mode preprocess -gtf-file GTF_FILE -chrom-sizes-file CHROM_SIZES_FILE [-home-dir HOME_DIR -cpu CPU -read-in-dist READ_IN_DIST -readthrough-dist READTHROUGH_DIST -intergenic-min-len INTERGENIC_MIN_LEN -intergenic-max-len INTERGENIC_MAX_LEN]
 ```
 The required arguments are -mode, -gtf-file, and -chrom-sizes-file. All other arguments are optional. Their default values are as follows:
 ``` 
--home-dir -- Directory in which ARTDeco is run. Default is current directory.
+-home-dir -- Directory in which ARTDeco is run (and contains BAM files). Default is current directory.
 -cpu -- Number of CPU to use. Default is 1.
 -read-in-dist -- Distance upstream of gene to place read-in region. Default is 1 kb.
 -readthrough-dist -- Distance downstream of gene to place readthrough/downstream region. Default is 5 kb.
