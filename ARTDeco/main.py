@@ -26,6 +26,15 @@ def main():
                              get_dogs, and diff_exp_dogs. REQUIRED.',required=True,action='store')
     parser.add_argument('-home-dir',help='Directory in which to run ARTDeco (default is current directory)',
                         action='store',default='.')
+    parser.add_argument('-layout',
+                        help='Indicates whether the files are paired-end or single-end. Options are PE or SE.',
+                        action='store')
+    parser.add_argument('-stranded',
+                        help='Indicates whether the files are stranded or unstranded. Options are True or False.',
+                        action='store')
+    parser.add_argument('-orientation',
+                        help='Indicates whether the files are forward- or reverse-stranded. Options are Forward or '+
+                             'Reverse. Required for stranded data',action='store')
     parser.add_argument('-gtf-file',help='GTF file',action='store',default='.')
     parser.add_argument('-cpu',help='Maximum CPUs to use',action='store',type=int,default=1)
     parser.add_argument('-chrom-sizes-file',help='Chromosome sizes file',action='store',default='.')
@@ -102,30 +111,129 @@ def main():
         else:
             print('Gene annotation files exist...')
 
-        print('Inferring BAM file formats...')
-        formats = infer_experiments_group([os.path.join(args.home_dir,bam_file) for bam_file in bam_files],
-                                          os.path.join(args.home_dir,'preprocess_files','genes.full.bed'),
-                                          min(args.cpu,len(bam_files)))
+        if args.layout:
 
-        #Check that all of the BAM files are of the same format.
-        if len(set(x[1] for x in formats)) == 1 and len(set(x[2] for x in formats)) == 1 \
-                and len(set(x[3] for x in formats)) == 1:
+            if str.lower(args.layout) in ['pe','se']:
 
-            pe = formats[0][1]
-            stranded = formats[0][2]
-            flip = formats[0][3]
+                infer_layout = False
 
-            out_str = 'All BAM files are ' + output_inferred_format(formats[0])
-
-            print(out_str)
+                if str.lower(args.layout) == 'pe':
+                    print('BAM files specified as paired-end...')
+                    pe = True
+                else:
+                    print('BAM files specified as single-end...')
+                    pe = False
+            else:
+                print('Improper layout specified... Will infer...')
+                infer_layout = True
 
         else:
-            print('Error... One or more files do not match in inferred format... Exiting...')
+            print('No layout specified... Will infer...')
+            infer_layout = True
 
-            for f in formats:
-                out_str = f'BAM file {f[0]} inferred as '+output_inferred_format(f)
-                print(out_str)
-            sys.exit(1)
+        if args.stranded:
+
+            if str.lower(args.stranded) in ['true','false']:
+
+                infer_strandedness = False
+
+                if str.lower(args.stranded) == 'true':
+                    print('BAM files specified as stranded...')
+                    stranded = True
+                else:
+                    print('BAM files specified as unstranded...')
+                    stranded = False
+            else:
+                print('Improper indication of strandedness...')
+                infer_strandedness = True
+
+        elif args.orientation and str.lower(args.orientation) in ['forward','reverse']:
+            print('No strandedness specified but strand orientation specified... Will assign data as stranded...')
+            infer_strandedness = False
+            stranded = True
+        else:
+            print('No strandedness specified... Will infer...')
+            infer_strandedness = True
+
+        if args.orientation:
+
+            if str.lower(args.orientation) in ['forward','reverse']:
+
+                infer_orientation = False
+
+                if str.lower(args.orientation) == 'forward':
+                    print('BAM files specified as forward-strand oriented...')
+                    flip = False
+                else:
+                    print('BAM files specified as reverse-strand oriented...')
+                    flip = True
+            else:
+                print('Improper strand orientation specified... Will infer...')
+                infer_orientation = True
+
+        elif not infer_strandedness:
+            if stranded:
+                print('No strand orientation specified... Data is stranded... Will infer orientation...')
+                infer_orientation = True
+            else:
+                print('No strand orientation specified... Data is unstranded... No need to infer orientation...')
+                infer_orientation = False
+                flip = False
+        else:
+            print('No strand orientation specified... Will infer...')
+            infer_orientation = True
+
+        if infer_layout or infer_strandedness or infer_orientation:
+
+            print('Inferring BAM file formats...')
+            formats = infer_experiments_group([os.path.join(args.home_dir,bam_file) for bam_file in bam_files],
+                                              os.path.join(args.home_dir,'preprocess_files','genes.full.bed'),
+                                              min(args.cpu,len(bam_files)))
+
+            #Check layout.
+            if infer_layout:
+                if len(set(x[1] for x in formats)) == 1:
+                    pe = formats[0][1]
+                    if pe:
+                        print('All BAM files inferred as Paired-End...')
+                    else:
+                        print('All BAM files inferred as Single-End...')
+                else:
+                    print('Error... One or more files do not match in inferred format... Exiting...')
+                    for f in formats:
+                        out_str = f'BAM file {f[0]} inferred as '+output_inferred_format(f)
+                        print(out_str)
+                    sys.exit(1)
+
+            #Check strandedness.
+            if infer_strandedness:
+                if len(set(x[2] for x in formats)) == 1:
+                    stranded = formats[0][2]
+                    if stranded:
+                        print('All BAM files inferred as strand-specific...')
+                    else:
+                        print('All BAM files inferred as single-stranded...')
+                else:
+                    print('Error... One or more files do not match in inferred format... Exiting...')
+                    for f in formats:
+                        out_str = f'BAM file {f[0]} inferred as '+output_inferred_format(f)
+                        print(out_str)
+                    sys.exit(1)
+
+            #Check strand orientation.
+            if infer_orientation:
+                if len(set(x[3] for x in formats)) == 1:
+                    flip = formats[0][3]
+                    if flip:
+                        print('All BAM files inferred as reverse-strand oriented...')
+                    else:
+                        print('All BAM files inferred as forward-strand oriented...')
+                else:
+                    print('Error... One or more files do not match in inferred format... Exiting...')
+                    for f in formats:
+                        out_str = f'BAM file {f[0]} inferred as ' + output_inferred_format(f)
+                        print(out_str)
+                    sys.exit(1)
 
     #If the program is running in intergenic or get_dogs mode, check for existence of tag directories.
     if args.mode in ['intergenic','get_dogs']:

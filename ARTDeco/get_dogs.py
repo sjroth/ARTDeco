@@ -331,7 +331,7 @@ def get_dog_coordinates(gene,strand,window):
 
         end = gene_vals[curr_interval-1][1]
 
-        return {'Name':gene_vals[0][0],'Start':start,'End':end,'Strand':strand}
+        return {'Name':gene_vals[0][0],'Start':start,'End':end+window,'Strand':strand}
 
     else:
 
@@ -340,7 +340,7 @@ def get_dog_coordinates(gene,strand,window):
 
         end = gene_vals[curr_interval-1][1]
 
-        return {'Name':gene_vals[0][0],'Start':end,'End':start,'Strand':strand}
+        return {'Name':gene_vals[0][0],'Start':end-window,'End':start,'Strand':strand}
 
 
 '''

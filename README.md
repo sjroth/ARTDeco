@@ -74,7 +74,7 @@ preprocess --> intergenic --> diff_exp_read_in
                           |
                           --> get_dogs --> diff_exp_dogs
 ```
-The final note on running ARTDeco is that all of the BAM files should be from the same experimental set. Not only does this make sense in terms of good experimental practice, ARTDeco infers the file format of the BAM (i.e., paired-end vs. single-end, stranded-specific vs. unstranded, and forward vs. reverse strand orientation). These formats are necessary when generating many of the files (e.g., strandedness is important for counting reads for various regions). Perhaps future versions may avoid this constraint.
+The final note on running ARTDeco is that all of the BAM files should be from the same experimental set. Not only does this make sense in terms of good experimental practice, ARTDeco is built to generate files differently for differently formatted BAM files. The users can specify these formats in the command line or ARTDeco can infer the file format of the BAM (i.e., paired-end vs. single-end, stranded-specific vs. unstranded, and forward vs. reverse strand orientation). These formats are necessary when generating many of the files (e.g., strandedness is important for counting reads for various regions).
 ### Preprocessing mode
 ARTDeco's preprocessing mode generates most of the prerequisite files needed for downstream analysis. Specifically, these files include the following:
 ``` 
