@@ -3,7 +3,7 @@ Main script for running ARTDeco. Contains code to run each of the modes.
 '''
 from .preprocess import parse_gtf,create_stranded_downstream_df,create_stranded_read_in_df,\
     create_unstranded_downstream_df,create_unstranded_read_in_df,make_multi_tag_dirs
-from .intergenic import get_multi_gene_exp,get_max_isoform,get_gene_v_intergenic,assign_genes
+from .readthrough import get_multi_gene_exp,get_max_isoform,get_gene_v_intergenic,assign_genes
 from .misc import infer_experiments_group,output_inferred_format,get_regions_exp
 from .diff_exp_read_in import read_in_diff_exp,assign_read_in_genes
 from .get_dogs import get_dog_screening,generate_screening_bed,get_multi_interval_coverage,generate_full_screening_bed,\
@@ -22,7 +22,7 @@ def main():
     parser = argparse.ArgumentParser(prog='ARTDeco',
                                      description='Main script for Automatic ReadThrough DEteCtiOn-ARTDeco')
     parser.add_argument('-mode',
-                        help='Mode in which to run ARTDeco. Options are preprocess, intergenic, diff_exp_read_in, \
+                        help='Mode in which to run ARTDeco. Options are preprocess, readthrough, diff_exp_read_in, \
                              get_dogs, and diff_exp_dogs. REQUIRED.',required=True,action='store')
     parser.add_argument('-home-dir',help='Directory in which to run ARTDeco (default is current directory)',
                         action='store',default='.')
@@ -62,10 +62,10 @@ def main():
                         default=0.1)
     args = parser.parse_known_args()[0]
 
-    if args.mode in ['preprocess','intergenic','get_dogs','diff_exp_read_in','diff_exp_dogs']:
+    if args.mode in ['preprocess','readthrough','get_dogs','diff_exp_read_in','diff_exp_dogs']:
         print(f'Running {args.mode} mode...')
     else:
-        print('Invalid run mode specified... Please choose from preprocess, intergenic, get_dogs, diff_exp_read_in, '+
+        print('Invalid run mode specified... Please choose from preprocess, readthrough, get_dogs, diff_exp_read_in, '+
               'or diff_exp_dogs')
 
     #Check home directory for BAM files. Store all BAMs and patterns for tag directories.
@@ -83,8 +83,8 @@ def main():
         print('No BAM files... Exiting...')
         sys.exit(1)
 
-    #If the program is running in preprocess, intergenic, or get_dogs mode, infer the format of the BAM files.
-    if args.mode in ['preprocess','intergenic','get_dogs']:
+    #If the program is running in preprocess, readthrough, or get_dogs mode, infer the format of the BAM files.
+    if args.mode in ['preprocess','readthrough','get_dogs']:
 
         #Check if user-supplied GTF file exists.
         if os.path.isfile(args.gtf_file):
@@ -235,8 +235,8 @@ def main():
                         print(out_str)
                     sys.exit(1)
 
-    #If the program is running in intergenic or get_dogs mode, check for existence of tag directories.
-    if args.mode in ['intergenic','get_dogs']:
+    #If the program is running in readthrough or get_dogs mode, check for existence of tag directories.
+    if args.mode in ['readthrough','get_dogs']:
 
         for tag_dir in tag_dirs:
 
@@ -412,14 +412,14 @@ def main():
         else:
             print('Tag directories already exist...')
 
-    #Run intergenic mode.
-    if args.mode == 'intergenic':
+    #Run readthrough mode.
+    if args.mode == 'readthrough':
 
-        #Check if quantification and intergenic directories exist. Create them if they do not.
+        #Check if quantification and readthrough directories exist. Create them if they do not.
         if not os.path.isdir(os.path.join(args.home_dir,'quantification')):
             os.mkdir(os.path.join(os.path.join(args.home_dir,'quantification')))
-        if not os.path.isdir(os.path.join(args.home_dir,'intergenic')):
-            os.mkdir(os.path.join(os.path.join(args.home_dir,'intergenic')))
+        if not os.path.isdir(os.path.join(args.home_dir,'readthrough')):
+            os.mkdir(os.path.join(os.path.join(args.home_dir,'readthrough')))
 
         #Check if gene expression and maximum isoform files exist. If one of them does not, create all three.
         if os.path.isfile(os.path.join(args.home_dir,'quantification','gene.exp.raw.txt')) and \
@@ -445,9 +445,9 @@ def main():
                              os.path.join(args.home_dir,'quantification'),min(len(tag_dirs),args.cpu)))
 
         #Check if intergenic vs. gene expression files exist. IF one of them does not, create both of them.
-        if os.path.isfile(os.path.join(args.home_dir,'intergenic','read_in.txt')) and \
-                os.path.isfile(os.path.join(args.home_dir,'intergenic','readthrough.txt')) and \
-                os.path.isfile(os.path.join(args.home_dir,'intergenic','read_in_assignments.txt')) and \
+        if os.path.isfile(os.path.join(args.home_dir,'readthrough','read_in.txt')) and \
+                os.path.isfile(os.path.join(args.home_dir,'readthrough','readthrough.txt')) and \
+                os.path.isfile(os.path.join(args.home_dir,'readthrough','read_in_assignments.txt')) and \
                 not args.overwrite:
             print('Intergenic vs. gene expression files and read-in gene assignments exist...')
         else:
@@ -458,16 +458,16 @@ def main():
                                   os.path.join(args.home_dir,'quantification','gene.exp.fpkm.txt'),
                                   os.path.join(args.home_dir,'quantification','max_isoform.txt'),
                                   os.path.join(args.home_dir,'quantification','read_in.raw.txt'),'Read-In',
-                                  os.path.join(args.home_dir,'intergenic','read_in.txt'))
+                                  os.path.join(args.home_dir,'readthrough','read_in.txt'))
 
             get_gene_v_intergenic(os.path.join(args.home_dir,'quantification','gene.exp.raw.txt'),
                                   os.path.join(args.home_dir,'quantification','gene.exp.fpkm.txt'),
                                   os.path.join(args.home_dir,'quantification','max_isoform.txt'),
                                   os.path.join(args.home_dir,'quantification','readthrough.raw.txt'),'Readthrough',
-                                  os.path.join(args.home_dir,'intergenic','readthrough.txt'))
+                                  os.path.join(args.home_dir,'readthrough','readthrough.txt'))
 
-            assign_genes(os.path.join(args.home_dir,'intergenic','read_in.txt'),args.read_in_threshold,
-                         args.read_in_fpkm,os.path.join(args.home_dir,'intergenic','read_in_assignments.txt'))
+            assign_genes(os.path.join(args.home_dir,'readthrough','read_in.txt'),args.read_in_threshold,
+                         args.read_in_fpkm,os.path.join(args.home_dir,'readthrough','read_in_assignments.txt'))
 
     #Run diff_exp_read_in mode.
     if args.mode == 'diff_exp_read_in':
@@ -521,7 +521,7 @@ def main():
                   f'{args.read_in_fpkm}... Read-in level threshold is {args.read_in_threshold}...')
 
             for condition1,condition2 in comparisons:
-                read_in_diff_exp(os.path.join(args.home_dir,'intergenic/read_in.txt'),
+                read_in_diff_exp(os.path.join(args.home_dir,'readthrough','read_in.txt'),
                                  os.path.join(args.home_dir,'preprocess_files/meta.reformatted.txt'),
                                  os.path.join(args.home_dir,'diff_exp', f'{condition1}-{condition2}-results.txt'),
                                  os.path.join(args.home_dir,'diff_exp_read_in'))
@@ -594,7 +594,7 @@ def main():
 
             generate_full_screening_bed(tag_dirs, os.path.join(args.home_dir,'preprocess_files','genes_condensed.bed'),
                                         screening_genes_dfs,
-                                        os.path.join(args.home_dir,'intergenic','read_in_assignments.txt'),
+                                        os.path.join(args.home_dir,'readthrough','read_in_assignments.txt'),
                                         args.chrom_sizes_file,args.dog_window,args.cpu,args.home_dir)
 
             print('Screening coverage for pre-screened DoGs...')
