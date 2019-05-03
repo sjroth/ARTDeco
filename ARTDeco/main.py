@@ -23,7 +23,7 @@ def main():
                                      description='Main script for Automatic ReadThrough DEteCtiOn-ARTDeco')
     parser.add_argument('-mode',
                         help='Mode in which to run ARTDeco. Options are preprocess, readthrough, diff_exp_read_in, \
-                             get_dogs, and diff_exp_dogs. REQUIRED.',required=True,action='store')
+                             get_dogs, and diff_exp_dogs.',action='store')
     parser.add_argument('-home-dir',help='Directory in which to run ARTDeco (default is current directory)',
                         action='store',default='.')
     parser.add_argument('-layout',
@@ -35,9 +35,9 @@ def main():
     parser.add_argument('-orientation',
                         help='Indicates whether the files are forward- or reverse-stranded. Options are Forward or '+
                              'Reverse. Required for stranded data',action='store')
-    parser.add_argument('-gtf-file',help='GTF file',action='store',default='.')
+    parser.add_argument('-gtf-file',help='GTF file',action='store')
     parser.add_argument('-cpu',help='Maximum CPUs to use',action='store',type=int,default=1)
-    parser.add_argument('-chrom-sizes-file',help='Chromosome sizes file',action='store',default='.')
+    parser.add_argument('-chrom-sizes-file',help='Chromosome sizes file')
     parser.add_argument('-read-in-dist',help='Read-in distance. Default is 1 kb.',type=int,default=1000)
     parser.add_argument('-readthrough-dist',help='Readthrough distance. Default is 5 kb.',type=int,default=5000)
     parser.add_argument('-intergenic-min-len',help='Minimum length for intergenic regions. Default is 100 bp.',type=int,
@@ -50,8 +50,8 @@ def main():
                         type=float,default=0.25)
     parser.add_argument('-overwrite',help='Indicate whether to overwrite existing files',default=False,
                         action='store_true')
-    parser.add_argument('-meta-file',help='Meta file',action='store',type=str,default='.')
-    parser.add_argument('-comparisons-file',help='Comparisons file',type=str,default='.')
+    parser.add_argument('-meta-file',help='Meta file',action='store',type=str)
+    parser.add_argument('-comparisons-file',help='Comparisons file',type=str)
     parser.add_argument('-log2FC', help='Minimum log2 fold change for considering a gene upregulated. Default is 2.',
                         type=float,default=2)
     parser.add_argument('-pval', help='Maximum p-value for considering a gene upregulated. Default is 0.05.',type=float,
@@ -84,13 +84,16 @@ def main():
         sys.exit(1)
 
     #If the program is running in preprocess, readthrough, or get_dogs mode, infer the format of the BAM files.
-    if args.mode in ['preprocess','readthrough','get_dogs']:
+    if not args.mode or args.mode in ['preprocess','readthrough','get_dogs']:
 
         #Check if user-supplied GTF file exists.
-        if os.path.isfile(args.gtf_file):
+        if args.gtf_file and os.path.isfile(args.gtf_file):
             print('GTF file exists...')
-        else:
+        elif args.gtf_file:
             print('Invalid GTF file supplied... Exiting...')
+            sys.exit(1)
+        else:
+            print('No GTF file supplied... Exiting...')
             sys.exit(1)
 
         #Check for existence of a gene annotation directory with all necessary files. Create file if necessary.
@@ -263,7 +266,7 @@ def main():
         else:
 
             #Check meta file.
-            if os.path.isfile(args.meta_file):
+            if args.meta_file and os.path.isfile(args.meta_file):
 
                 meta = open(args.meta_file).readlines()
                 meta_format = True
@@ -295,12 +298,15 @@ def main():
                     print('Meta file not properly formatted... Exiting...')
                     sys.exit(1)
 
-            else:
+            elif args.meta_file:
                 print('Meta file does not exist... Exiting...')
+                sys.exit(1)
+            else:
+                print('No meta file supplied... Exiting...')
                 sys.exit(1)
 
             #Check comparisons file.
-            if os.path.isfile(args.comparisons_file):
+            if args.comparisons_file and os.path.isfile(args.comparisons_file):
 
                 print('Comparisons file exists...')
 
@@ -340,14 +346,17 @@ def main():
     #If the program is running in preprocess or get_dogs mode, check if the chromosome sizes file exists.
     #Load chromosome sizes file.
     if args.mode in ['preprocess','get_dogs']:
-        if os.path.isfile(args.chrom_sizes_file):
+        if args.chrom_sizes_file and os.path.isfile(args.chrom_sizes_file):
             chrom_sizes_file = open(args.chrom_sizes_file)
             chrom_sizes = {}
             for line in chrom_sizes_file.readlines():
                 line = line.strip().split('\t')
                 chrom_sizes[line[0]] = int(line[1])
-        else:
+        elif args.chrom_sizes_file:
             print('Chromosome sizes file does not exist... Exiting...')
+            sys.exit(1)
+        else:
+            print('No chromosome sizes file supplied... Exiting...')
             sys.exit(1)
 
     #Run preprocess mode.
