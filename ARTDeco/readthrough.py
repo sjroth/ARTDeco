@@ -169,7 +169,7 @@ def assign_genes(read_in_file,read_in_threshold,read_in_fpkm,out_file):
                                     (expt_df[expt+' log2Ratio Read-In vs. Gene'] < read_in_threshold)].index
         read_in = expt_df[(expt_df[expt+' Gene FPKM'] > read_in_fpkm) &
                           (expt_df[expt+' log2Ratio Read-In vs. Gene'] > read_in_threshold)].index
-        expt_df.loc[primary_induction,expt+' Assignment'] = 'Primary Induction'
+        expt_df.loc[primary_induction,expt+' Assignment'] = 'Activated'
         expt_df.loc[read_in,expt+' Assignment'] = 'Read-In'
         del expt_df[expt+' Gene FPKM']
 

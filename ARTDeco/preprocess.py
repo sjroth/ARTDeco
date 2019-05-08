@@ -117,7 +117,7 @@ def parse_gtf(gtf_file,home_dir):
 
     #Run command to convert GTF to bed.
     print('Convert GTF to BED...')
-    gene_full_bed = os.path.join(home_dir,'preprocess_files/genes.full.bed')
+    gene_full_bed = os.path.join(home_dir,'preprocess_files','genes.full.bed')
 
     f = open(gene_full_bed,'w')
     subprocess.call(f"gtf2bed < {gtf_file}",shell=True,stdout=f)
@@ -128,8 +128,8 @@ def parse_gtf(gtf_file,home_dir):
     genes,gene_to_transcript = parse_gene_bed(gene_full_bed)
 
     #Output condensed genes BED file and gene-to-transcript mapping file.
-    genes.to_csv(os.path.join(home_dir,'preprocess_files/genes_condensed.bed'),sep='\t',header=False,index=False)
-    gene_to_transcript.to_csv(os.path.join(home_dir,'preprocess_files/gene_to_transcript.txt'),index=False,sep='\t')
+    genes.to_csv(os.path.join(home_dir,'preprocess_files','genes_condensed.bed'),sep='\t',header=False,index=False)
+    gene_to_transcript.to_csv(os.path.join(home_dir,'preprocess_files','gene_to_transcript.txt'),index=False,sep='\t')
 
 '''
 Define a function that can format intergenic dataframes.
@@ -381,19 +381,19 @@ def create_stranded_downstream_df(df,chrom_lengths,max_len=15000,min_len=100,dow
 
         row = neg_strand_vals[i]
 
-        # Get the downstream region.
+        #Get the downstream region.
         if i > 0:
 
             prev_row = neg_strand_vals[i-1]
 
-            # If the downstream gene is not on the same chromosome, set the downstream region as the maximum length.
+            #If the downstream gene is not on the same chromosome, set the downstream region as the maximum length.
             if row[1] == prev_row[1]:
 
                 dist = row[5]-prev_row[4]
                 dist = dist/3
                 dist = min(dist,max_len)
 
-                # If the distance is longer than the minimum length, record the downstream stop.
+                #If the distance is longer than the minimum length, record the downstream stop.
                 if dist > min_len:
                     downstream_start.append(row[5]-dist)
                 else:

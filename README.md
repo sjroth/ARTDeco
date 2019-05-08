@@ -8,6 +8,7 @@ bedops>=2.4.35
 bx-python>=0.8.2
 DESeq2>=1.20
 Homer>=4.9
+networkx>=2.2
 numpy>=1.16.2
 pandas>=0.24.2
 rpy2>=2.9.4
@@ -17,7 +18,7 @@ setuptools
 ```
 The easiest way to install these is to use either Anaconda or Miniconda as a package manager using the [Bioconda](https://bioconda.github.io/) channel and the following command:
 ```
-conda install bedops=2.4.* bioconductor-deseq2=1.20.* bx-python=0.8.* homer=4.9.* numpy=1.16.* pandas=0.24.* pybigwig rpy2=2.9.* rseqc=3.0.* samtools=1.9
+conda install bedops=2.4.* bioconductor-deseq2=1.20.* bx-python=0.8.* homer=4.9.* networkx=2.* numpy=1.16.* pandas=0.24.* pybigwig rpy2=2.9.* rseqc=3.0.* samtools=1.9
 ```
 This is recommended because the dependency management of conda is very good. With this in mind, I've created a simple conda environment for running ARTDeco (located in the Conda folder) if you don't feel like adding these packages to your current environment. Go into the Conda directory and run the following code:
 ```

@@ -18,9 +18,9 @@ def reformat_meta(meta_file,out_dir):
 
     meta_df = pd.read_csv(meta_file,sep='\t')
     meta_df.Experiment = meta_df.Experiment.str.replace('-','_')
-    meta_df.Experiment = meta_df.Experiment.str.replace(' ', '_')
+    meta_df.Experiment = meta_df.Experiment.str.replace(' ','_')
     meta_df.Group = meta_df.Group.str.replace('-','_')
-    meta_df.Group = meta_df.Group.str.replace(' ', '_')
+    meta_df.Group = meta_df.Group.str.replace(' ','_')
     meta_df = meta_df.sort_values('Experiment')
     meta_df.to_csv(os.path.join(out_dir,'meta.reformatted.txt'),sep='\t',index=False)
 
@@ -30,10 +30,10 @@ Define a function that can reformat a comparisons file.
 def reformat_comparisons(comparisons_file,out_dir):
 
     comparisons_df = pd.read_csv(comparisons_file,sep='\t',header=None)
-    comparisons_df[0] = comparisons_df[0].str.replace('-', '_')
-    comparisons_df[0] = comparisons_df[0].str.replace(' ', '_')
-    comparisons_df[1] = comparisons_df[1].str.replace('-', '_')
-    comparisons_df[1] = comparisons_df[1].str.replace(' ', '_')
+    comparisons_df[0] = comparisons_df[0].str.replace('-','_')
+    comparisons_df[0] = comparisons_df[0].str.replace(' ','_')
+    comparisons_df[1] = comparisons_df[1].str.replace('-','_')
+    comparisons_df[1] = comparisons_df[1].str.replace(' ','_')
     comparisons_df.to_csv(os.path.join(out_dir,'comparisons.reformatted.txt'),sep='\t',index=False,header=False)
 
 '''

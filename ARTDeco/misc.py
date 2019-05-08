@@ -2,10 +2,258 @@
 Module that contains assorted utils that do not fall under a single usage category. Not including DESeq2 stuff as it
 takes time to load.
 '''
+import networkx as nx
 import subprocess
 from multiprocessing import Pool
 import pandas as pd
 import os
+
+'''
+Define an object that manages file dependencies for the ARTDeco output. 
+'''
+class ARTDecoDir:
+
+    #Initialization method. Creates a dependency graph.
+    def __init__(self,bam_files_dir,home_dir):
+
+        self.bam_files_dir = bam_files_dir
+        self.home_dir = home_dir
+
+        #Create graph.
+        self.dependency = nx.DiGraph()
+
+        #ARTDeco directories.
+        self.preprocess_dir = os.path.join(home_dir,'preprocess_files')
+        self.quantification_dir = os.path.join(home_dir,'quantification')
+        self.readthrough_dir = os.path.join(home_dir,'readthrough')
+        self.dogs_dir = os.path.join(home_dir,'dogs')
+        self.diff_exp_dir = os.path.join(home_dir,'diff_exp')
+        self.diff_exp_read_in_dir = os.path.join(home_dir,'diff_exp_read_in')
+        self.diff_exp_dogs_dir = os.path.join(home_dir,'diff_exp_dogs')
+
+        #Add nodes.
+        self.dependency.add_nodes_from([self.preprocess_dir,self.quantification_dir,self.readthrough_dir,self.dogs_dir,
+                                        self.diff_exp_dir,self.diff_exp_read_in_dir,self.diff_exp_dogs_dir])
+
+        #Grab BAM files.
+        self.bam_files = []
+        self.tag_dirs = set()
+        self.all_tag_dirs = []
+        self.tag_dir_to_bam = {}
+        for f in os.listdir(bam_files_dir):
+            if f[-4:] == '.bam':
+                self.bam_files.append(f)
+                tag_dir = os.path.join(self.preprocess_dir,f[:-4])
+                self.tag_dirs.add(tag_dir)
+                self.all_tag_dirs.append(tag_dir)
+                self.tag_dir_to_bam[tag_dir] = f
+
+        #Preprocessing files.
+        self.comparisons_file = os.path.join(self.preprocess_dir,'comparisons.reformatted.txt')
+        self.genes_condensed = os.path.join(self.preprocess_dir,'genes_condensed.bed')
+        self.genes_full = os.path.join(self.preprocess_dir,'genes.full.bed')
+        self.gene_to_transcript = os.path.join(self.preprocess_dir,'gene_to_transcript.txt')
+        self.meta_file = os.path.join(self.preprocess_dir,'meta.reformatted.txt')
+        self.read_in_bed = os.path.join(self.preprocess_dir,'read_in.bed')
+        self.readthrough_bed = os.path.join(self.preprocess_dir,'readthrough.bed')
+
+        self.preprocessing_files = {self.genes_condensed,self.genes_full,self.gene_to_transcript,self.read_in_bed,
+                                    self.readthrough_bed} | self.tag_dirs
+
+        #Add nodes.
+        self.dependency.add_nodes_from(self.preprocessing_files)
+
+        #Add edges.
+        self.dependency.add_edges_from([(self.preprocess_dir,self.comparisons_file),
+                                        (self.preprocess_dir,self.genes_full),(self.preprocess_dir,self.meta_file),
+                                        (self.genes_full,self.genes_condensed),
+                                        (self.genes_condensed,self.gene_to_transcript),
+                                        (self.genes_condensed,self.read_in_bed),
+                                        (self.genes_condensed,self.readthrough_bed)]+
+                                       [(self.preprocess_dir,tag_dir) for tag_dir in self.tag_dirs])
+
+        #Quantification files.
+        self.gene_fpkm = os.path.join(self.quantification_dir,'gene.exp.fpkm.txt')
+        self.gene_raw = os.path.join(self.quantification_dir,'gene.exp.raw.txt')
+        self.max_isoform = os.path.join(self.quantification_dir,'max_isoform.txt')
+        self.read_in_exp = os.path.join(self.quantification_dir,'read_in.raw.txt')
+        self.readthrough_exp = os.path.join(self.quantification_dir,'readthrough.raw.txt')
+
+        self.quantification_files = {self.gene_fpkm,self.gene_raw,self.max_isoform,self.read_in_exp,
+                                     self.readthrough_exp}
+
+        #Add nodes.
+        self.dependency.add_nodes_from(self.quantification_files)
+
+        #Add edges.
+        self.dependency.add_edges_from([(self.quantification_dir,self.gene_fpkm),
+                                        (self.quantification_dir,self.gene_raw),
+                                        (self.quantification_dir,self.read_in_exp),
+                                        (self.quantification_dir,self.readthrough_exp)]+
+                                       [(tag_dir,self.gene_fpkm) for tag_dir in self.tag_dirs]+
+                                       [(tag_dir,self.gene_raw) for tag_dir in self.tag_dirs]+
+                                       [(tag_dir,self.read_in_exp) for tag_dir in self.tag_dirs]+
+                                       [(tag_dir,self.readthrough_exp) for tag_dir in self.tag_dirs]+
+                                       [(self.gene_fpkm, self.max_isoform),(self.read_in_bed,self.read_in_exp),
+                                        (self.readthrough_bed,self.readthrough_exp),
+                                        (self.read_in_bed,self.read_in_exp)])
+
+        #Readthrough files.
+        self.read_in_assignments = os.path.join(self.readthrough_dir,'read_in_assignments.txt')
+        self.read_in_levels = os.path.join(self.readthrough_dir,'read_in.txt')
+        self.readthrough_levels = os.path.join(self.readthrough_dir,'readthrough.txt')
+
+        self.readthrough_files = {self.read_in_assignments,self.read_in_levels,self.readthrough_levels}
+
+        #Add nodes.
+        self.dependency.add_nodes_from(self.readthrough_files)
+
+        #Add edges.
+        self.dependency.add_edges_from([(self.readthrough_dir,self.read_in_levels),
+                                        (self.readthrough_dir,self.readthrough_levels),
+                                        (self.gene_fpkm, self.read_in_levels), (self.gene_raw, self.read_in_levels),
+                                        (self.max_isoform, self.read_in_levels),
+                                        (self.read_in_exp, self.read_in_levels),
+                                        (self.gene_fpkm, self.readthrough_levels),
+                                        (self.gene_raw, self.readthrough_levels),
+                                        (self.max_isoform, self.readthrough_levels),
+                                        (self.readthrough_exp, self.readthrough_levels),
+                                        (self.read_in_levels, self.read_in_assignments)])
+
+        #DoGs files.
+        self.all_dogs_bed = os.path.join(self.dogs_dir,'all_dogs.bed')
+        self.all_dogs_fpkm = os.path.join(self.dogs_dir,'all_dogs.fpkm.txt')
+        self.all_dogs_raw = os.path.join(self.dogs_dir,'all_dogs.raw.txt')
+
+        self.dogs_beds = set()
+        self.all_dogs_beds = []
+        self.dogs_bed_to_tagdir = {}
+        self.dogs_raw = set()
+        self.dogs_fpkm = set()
+        for tag_dir in self.tag_dirs:
+            dog = os.path.join(home_dir,'dogs',tag_dir.split('/')[-1])+'.dogs.'
+
+            self.dogs_beds.add(dog+'bed')
+            self.all_dogs_beds.append(dog+'bed')
+            self.dogs_bed_to_tagdir[dog+'bed'] = tag_dir
+            self.dogs_raw.add(dog+'raw.txt')
+            self.dogs_fpkm.add(dog+'fpkm.txt')
+
+            self.dependency.add_nodes_from([dog+'bed',dog+'raw.txt',dog+'fpkm.txt'])
+            self.dependency.add_edges_from([(self.dogs_dir,dog+'bed'),(self.genes_condensed,dog+'bed'),
+                                            (tag_dir,dog+'bed'),(self.read_in_assignments,dog+'bed'),
+                                            (tag_dir,dog+'raw.txt'),(tag_dir,dog+'fpkm.txt'),(dog+'bed',dog+'raw.txt'),
+                                            (dog+'bed',dog+'fpkm.txt')])
+
+        self.dogs_files = {self.all_dogs_bed,self.all_dogs_fpkm,self.all_dogs_raw} | self.dogs_beds | self.dogs_raw |\
+                          self.dogs_fpkm
+
+        #Add nodes.
+        self.dependency.add_nodes_from([self.all_dogs_bed,self.all_dogs_fpkm,self.all_dogs_raw])
+
+        #Add edges.
+        self.dependency.add_edges_from([(dog,self.all_dogs_bed) for dog in self.dogs_beds]+
+                                       [(tag_dir,self.all_dogs_fpkm) for tag_dir in self.tag_dirs]+
+                                       [(tag_dir,self.all_dogs_raw) for tag_dir in self.tag_dirs]+
+                                       [(self.all_dogs_bed,self.all_dogs_fpkm),(self.all_dogs_bed,self.all_dogs_raw)])
+
+        #Assorted lists for prerequisite files.
+        self.gtf_needed = {self.genes_full,self.gene_fpkm,self.gene_raw}
+        self.format_needed = {self.read_in_bed,self.readthrough_bed,self.gene_fpkm,self.gene_raw,self.read_in_exp,
+                              self.readthrough_exp,self.all_dogs_fpkm,self.all_dogs_raw} | self.tag_dirs | \
+                             self.dogs_beds | self.dogs_fpkm | self.dogs_fpkm
+        self.chrom_sizes_needed = {self.read_in_bed,self.readthrough_bed} | self.dogs_beds
+
+    #Define a function that can set up differential expression outputs if prompted. Assumes comparisons file has
+    #been generated.
+    def set_diff_exp_output(self):
+
+        self.__comparisons = [line.strip().split('\t') for line in open(self.comparisons_file).readlines()]
+
+        #Differential expression output files.
+        self.diff_exp_files = set()
+        self.diff_exp_read_in_files = set()
+        self.diff_exp_dogs_files = set()
+        for condition1,condition2 in self.__comparisons:
+            diff_exp = os.path.join(self.diff_exp_dir,f'{condition1}-{condition2}-results.txt')
+            diff_exp_read_in = os.path.join(self.diff_exp_read_in_dir,f'{condition1}-{condition2}-read_in.txt')
+            assignments = os.path.join(self.diff_exp_read_in_dir,f'{condition1}-{condition2}-read_in_assignment.txt')
+            diff_exp_dogs = os.path.join(self.diff_exp_dogs_dir,f'{condition1}-{condition2}-results.txt')
+
+            self.diff_exp_files.add(diff_exp)
+            self.diff_exp_read_in_files |= {diff_exp_read_in,assignments}
+            self.diff_exp_dogs_files.add(diff_exp_dogs)
+
+            #Add nodes.
+            self.dependency.add_nodes_from([diff_exp,diff_exp_read_in,assignments,diff_exp_dogs])
+
+            #Add edges.
+            self.dependency.add_edges_from([(self.diff_exp_dir,diff_exp),(self.gene_raw,diff_exp),
+                                            (self.diff_exp_read_in_dir,diff_exp_read_in),(diff_exp,diff_exp_read_in),
+                                            (diff_exp_read_in,assignments),(self.diff_exp_dogs_dir,diff_exp_dogs),
+                                            (self.all_dogs_raw,diff_exp_dogs)])
+
+    #Get directories/files to generate based upon mode.
+    def get_files(self,mode,meta_provided,overwrite):
+
+        flatten = lambda l: [item for sublist in l for item in sublist]
+
+        #If mode provided, specify output files.
+        if mode:
+            if mode == 'preprocess':
+                end_files = self.preprocessing_files
+                if not meta_provided:
+                    end_files.remove(self.comparisons_file)
+                    end_files.remove(self.meta_file)
+            elif mode == 'readthrough':
+                end_files = self.readthrough_files
+            elif mode == 'get_dogs':
+                end_files = self.dogs_files
+            elif mode == 'diff_exp_read_in':
+                end_files = self.diff_exp_read_in_files
+            else:
+                end_files = self.diff_exp_dogs_files
+
+        #No mode but meta provided.
+        elif meta_provided:
+            end_files = self.preprocessing_files | self.readthrough_files | self.dogs_files | \
+                        self.diff_exp_read_in_files | self.diff_exp_dogs_files
+
+        #No mode with no meta.
+        else:
+            end_files = self.preprocessing_files | self.readthrough_files | self.dogs_files
+
+        #Go through paths and get non-existent out files.
+        out_files = set()
+        for f in end_files:
+            paths = nx.single_target_shortest_path(self.dependency,f)
+            for out_file in set(flatten(paths.values())):
+                if overwrite:
+                    if not os.path.isdir(out_file):
+                        out_files.add(out_file)
+                else:
+                    if not os.path.isfile(out_file) and not os.path.isdir(out_file):
+                        out_files.add(out_file)
+
+        return out_files
+
+    #Update file directory lists to reflect what needs to be generated.
+    def update_dir_lists(self,out_files):
+        self.tag_dirs &= out_files
+        self.preprocessing_files &= out_files
+        self.quantification_files &= out_files
+        self.readthrough_files &= out_files
+        self.dogs_files &= out_files
+        self.dogs_beds &= out_files
+        try:
+            self.diff_exp_files &= out_files
+            self.diff_exp_read_in_files &= out_files
+            self.diff_exp_dogs_files &= out_files
+        except:
+            pass
+        self.gtf_needed &= out_files
+        self.format_needed &= out_files
+        self.chrom_sizes_needed &= out_files
 
 '''
 Define a function that can infer experiment format using RSeQC.

@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='ARTDeco',
-    version='0.2',
+    version='0.3',
     packages=['ARTDeco'],
     url='https://github.com/sjroth/ARTDeco',
     license='MIT',
@@ -25,6 +25,7 @@ setup(
         'Topic :: Scientific/Engineering :: Bio-Informatics'],
     install_requires=[
         'bx-python>=0.8.2',
+        'networkx>=2.2',
         'numpy>=1.16.2',
         'pandas>=0.24.2',
         'rpy2>=2.9.4',

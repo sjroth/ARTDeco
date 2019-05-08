@@ -7,6 +7,7 @@ dependencies:
   - bioconductor-deseq2=1.20.*
   - bx-python=0.8.*
   - homer=4.9.*
+  - networkx=2.*
   - numpy=1.16.*
   - pandas=0.24.*
   - pybigwig
