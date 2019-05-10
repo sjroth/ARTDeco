@@ -98,15 +98,15 @@ def main():
     if not os.path.isdir(artdeco_dir.summary_dir):
         os.mkdir(artdeco_dir.summary_dir)
 
+    #Create preprocess_files directory if it does not exist.
+    if not os.path.isdir(artdeco_dir.preprocess_dir):
+        os.mkdir(artdeco_dir.preprocess_dir)
+
     #Generate meta and comparisons if it is needed.
     if (args.mode and (args.mode in ['diff_exp_read_in','diff_exp_dogs']) or
         (args.mode == 'preprocess' and args.meta_file)) or (not args.mode and args.meta_file):
         from .DESeq2 import reformat_meta,reformat_comparisons,generate_comparisons,load_deseq_dataset,run_deseq,\
             deseq_results
-
-        #Create preprocess_files directory if it does not exist.
-        if not os.path.isdir(artdeco_dir.preprocess_dir):
-            os.mkdir(artdeco_dir.preprocess_dir)
 
         #Specify whether meta file needs to be generated.
         if args.overwrite:
