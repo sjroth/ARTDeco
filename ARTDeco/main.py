@@ -6,9 +6,9 @@ from .preprocess import parse_gtf,create_stranded_downstream_df,create_stranded_
     create_unstranded_downstream_df,create_unstranded_read_in_df,make_multi_tag_dirs
 from .readthrough import get_multi_gene_exp,get_max_isoform,get_gene_v_intergenic,assign_genes,\
     summarize_readthrough_stats,summarize_read_in_assignments
-from .diff_exp_read_in import read_in_diff_exp,assign_read_in_genes
+from .diff_exp_read_in import read_in_diff_exp,assign_read_in_genes,summarize_diff_exp_read_in_assignments
 from .get_dogs import get_dog_screening,generate_screening_bed,get_multi_interval_coverage,generate_full_screening_bed,\
-    get_multi_dog_beds,merge_dogs,get_dog_exp,summarize_dog_lens
+    get_multi_dog_beds,merge_dogs,get_dog_exp,summarize_dog_lens,summarize_all_dog_exp,summarize_dog_exp
 
 
 import argparse
@@ -598,15 +598,22 @@ def main():
                              min(args.cpu,len(artdeco_dir.all_tag_dirs))))
 
         #Summarize DoG files.
+        summary_file = os.path.join(artdeco_dir.summary_dir,'dogs_summary.txt')
         summary = f'Summary for DoG finding with minimum length {args.min_dog_len} bp, minimum coverage of '+\
                   f'{args.min_dog_coverage} FPKM, and screening window of {args.dog_window} bp\n'
         summary += 'Summary of DoG lengths for all DoGs:\n'+summarize_dog_lens(artdeco_dir.all_dogs_bed)
         for dogs_bed in artdeco_dir.all_dogs_beds:
             summary += f'\nSummary of DoG lengths for {dogs_bed[:-4]}:\n'+summarize_dog_lens(dogs_bed)
-
+        summary += '\nSummary of expression for all DoGs across all experiments in FPKM\n'+\
+                   summarize_all_dog_exp(artdeco_dir.all_dogs_fpkm)
+        for dogs_exp in artdeco_dir.dogs_fpkm:
+            summary += f'\nSummary of DoG expression for {dogs_exp.split("/")[-1][:-14]}\n'+summarize_dog_exp(dogs_exp)
 
         for line in summary.split('\n'):
             print(line)
+
+        with open(summary_file,'w') as f:
+            f.write(summary)
 
     #Generate differential expression output.
     try:
@@ -648,6 +655,20 @@ def main():
                 assign_read_in_genes(os.path.join(artdeco_dir.diff_exp_read_in_dir,
                                                   f'{condition1}-{condition2}-read_in.txt'),args.log2FC,args.pval,
                                      args.read_in_fpkm,args.read_in_threshold,artdeco_dir.diff_exp_read_in_dir)
+
+            #Summarize output.
+            summary_file = os.path.join(artdeco_dir.summary_dir,'diff_exp_read_in_summary.txt')
+            summary = 'Summary for read-in assignments using differential expression'
+            for condition1,condition2 in comparisons:
+                summary += '\n'+summarize_diff_exp_read_in_assignments(os.path.join(artdeco_dir.diff_exp_read_in_dir,
+                                                                f'{condition1}-{condition2}-read_in_assignment.txt'))
+
+            for line in summary.split('\n'):
+                print(line)
+
+            with open(summary_file,'w') as f:
+                f.write(summary)
+
     except:
         pass
 

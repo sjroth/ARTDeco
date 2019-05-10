@@ -87,3 +87,14 @@ def assign_read_in_genes(diff_exp_read_in_file,log2FC,pval,FPKM,read_in_threshol
     read_in_index = upreg[upreg[condition1+' Read-In vs. Gene'] > read_in_threshold].index
     upreg.loc[read_in_index,'Assignment'] = 'Read-In'
     upreg.to_csv(os.path.join(out_dir,f'{condition1}-{condition2}-read_in_assignment.txt'),sep='\t',index=False)
+
+'''
+Define a function that can summarize outputs for read-in assignments using differential expression.
+'''
+def summarize_diff_exp_read_in_assignments(assignment_file):
+
+    df = pd.read_csv(assignment_file,sep='\t')
+    output = f'Summary of Read-In Assignments for {assignment_file.split("/")[-1][:-23]} comparison:\n'+\
+             '\n'.join(df.groupby('Assignment').count()['Gene ID'].to_string().split('\n')[1:])
+
+    return output

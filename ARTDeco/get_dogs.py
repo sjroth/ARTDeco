@@ -515,3 +515,23 @@ def summarize_dog_lens(dogs_bed):
     df['Length'] = df.End - df.Start
 
     return '\n'.join(df['Length'].describe().to_string().split('\n'))
+
+'''
+Define a function that can describe DoG expression for all dogs.
+'''
+def summarize_all_dog_exp(dog_exp):
+
+    df = pd.read_csv(dog_exp,sep='\t')
+    del df['Length']
+
+    return df.describe().to_string()
+
+'''
+Define a function that summarizes DoG expression for an individual experiment.
+'''
+def summarize_dog_exp(exp_file):
+
+    df = pd.read_csv(exp_file,sep='\t')
+    expt = exp_file.split('/')[-1][:-14].replace('-','_').replace(' ','_')
+
+    return df[expt].describe().to_string()
