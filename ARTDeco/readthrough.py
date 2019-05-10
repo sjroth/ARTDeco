@@ -178,3 +178,36 @@ def assign_genes(read_in_file,read_in_threshold,read_in_fpkm,out_file):
     #Join these dataframes.
     inference_df = functools.reduce(lambda x,y: pd.merge(x,y,on=['Gene ID','Transcript ID']),expt_dfs)
     inference_df.to_csv(out_file,sep='\t',index=False)
+
+'''
+Define a function that can summarize read-in and readthrough levels.
+'''
+def summarize_readthrough_stats(readthrough_file,expts,mode,summary_fpkm):
+
+    df = pd.read_csv(readthrough_file,sep='\t')
+
+    output = mode+' Summary'
+    for expt in expts:
+        output += f'\n{mode} levels for {expt} with FPKM cutoff of {summary_fpkm}:\n'
+
+        summary = df[[expt+' Gene FPKM',f'{expt} log2Ratio {mode} vs. Gene']]
+        summary = summary[summary[expt+' Gene FPKM'] > summary_fpkm]
+        summary = '\n'.join(summary[f'{expt} log2Ratio {mode} vs. Gene'].describe().to_string().split('\n'))
+        output += summary
+
+    return output
+
+'''
+Define a function that can summarize read-in assignments.
+'''
+def summarize_read_in_assignments(assignment_file,expts,read_in_fpkm):
+
+    df = pd.read_csv(assignment_file, sep='\t')
+
+    output = 'Read-In Assignments for each experiment'
+    for expt in expts:
+        output += f'\nRead-In Assignments for {expt} with FPKM cutoff of {read_in_fpkm}:\n'
+        assignments = '\n'.join(df.groupby(expt+' Assignment').count()['Gene ID'].to_string().split('\n')[1:])
+        output += assignments
+
+    return output

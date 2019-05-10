@@ -504,3 +504,14 @@ def get_dog_exp(tag_dirs,dog_files,stranded,out_dir,cpu):
     pool = Pool(processes=min(cpu,len(cmds)))
     pool.map(get_regions_exp,cmds)
     pool.close()
+
+
+'''
+Define a function that can describe the DoG lengths.
+'''
+def summarize_dog_lens(dogs_bed):
+
+    df = pd.read_csv(dogs_bed, sep='\t', names=['Chrom', 'Start', 'End', 'Name', 'Score', 'Strand'])
+    df['Length'] = df.End - df.Start
+
+    return '\n'.join(df['Length'].describe().to_string().split('\n'))

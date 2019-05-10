@@ -1,13 +1,14 @@
 '''
 Main script for running ARTDeco. Contains code to run each of the modes.
 '''
-from .misc import ARTDecoDir,infer_experiments_group,output_inferred_format,get_regions_exp
+from .misc import ARTDecoDir,infer_experiments_group,output_inferred_format,summarize_bam_files,get_regions_exp
 from .preprocess import parse_gtf,create_stranded_downstream_df,create_stranded_read_in_df,\
     create_unstranded_downstream_df,create_unstranded_read_in_df,make_multi_tag_dirs
-from .readthrough import get_multi_gene_exp,get_max_isoform,get_gene_v_intergenic,assign_genes
+from .readthrough import get_multi_gene_exp,get_max_isoform,get_gene_v_intergenic,assign_genes,\
+    summarize_readthrough_stats,summarize_read_in_assignments
 from .diff_exp_read_in import read_in_diff_exp,assign_read_in_genes
 from .get_dogs import get_dog_screening,generate_screening_bed,get_multi_interval_coverage,generate_full_screening_bed,\
-    get_multi_dog_beds,merge_dogs,get_dog_exp
+    get_multi_dog_beds,merge_dogs,get_dog_exp,summarize_dog_lens
 
 
 import argparse
@@ -51,6 +52,8 @@ def main():
                         default=0)
     parser.add_argument('-read-in-fpkm',help='Minimum FPKM value for considering a gene. Default is 0.25 FPKM.',
                         type=float,default=0.25)
+    parser.add_argument('-summary-fpkm', help='Minimum FPKM value for considering a gene for summarizing readthrough'+\
+                                              ' levels. Default is 1 FPKM.',type=float, default=1)
     parser.add_argument('-overwrite',help='Indicate whether to overwrite existing files',default=False,
                         action='store_true')
     parser.add_argument('-meta-file',help='Meta file',action='store',type=str)
@@ -90,6 +93,10 @@ def main():
     #Overwrite specified.
     if args.overwrite:
         print('Overwrite specified... Will regenerate all files...')
+
+    #Create summary file directory if it does not exist.
+    if not os.path.isdir(artdeco_dir.summary_dir):
+        os.mkdir(artdeco_dir.summary_dir)
 
     #Generate meta and comparisons if it is needed.
     if (args.mode and (args.mode in ['diff_exp_read_in','diff_exp_dogs']) or
@@ -179,10 +186,8 @@ def main():
 
                     comparisons_format = True
                     for line in comparisons:
-                        line[0] = line[0].replace('-','_')
-                        line[0] = line[0].replace(' ','_')
-                        line[1] = line[1].replace('-', '_')
-                        line[1] = line[1].replace(' ', '_')
+                        line[0] = line[0].replace('-','_').replace(' ','_')
+                        line[1] = line[1].replace('-', '_').replace(' ', '_')
                         if not line[0] in groups or not line[1] in groups:
                             comparisons_format = False
                 else:
@@ -202,7 +207,8 @@ def main():
 
         comparisons = [line.strip().split('\t') for line in open(artdeco_dir.comparisons_file).readlines()]
 
-        #Update files in ARTDeco directory.
+    #Update files in ARTDeco directory.
+    if os.path.exists(artdeco_dir.meta_file):
         artdeco_dir.set_diff_exp_output()
 
     #Generate output files.
@@ -229,7 +235,7 @@ def main():
             sys.exit(1)
 
     #Check if BAM file formats are needed. If they are, check if the user has specified them. If the user has not,
-    #infer those formats.
+    #infer those formats. Summarize file if the format is needed.
     if artdeco_dir.format_needed:
 
         print('BAM file format needed... Checking... Will infer if not user-specified.')
@@ -357,6 +363,17 @@ def main():
                         print(out_str)
                     sys.exit(1)
 
+        #Summarize files.
+        print('Summarizing BAM file stats...')
+        summary_file = os.path.join(artdeco_dir.summary_dir,'bam_summary.txt')
+        if os.path.isfile(summary_file):
+            os.remove(summary_file)
+        summary = summarize_bam_files(artdeco_dir.bam_files,args.cpu,pe,stranded,flip)
+        for line in summary.split('\n'):
+            print(line)
+        with open(summary_file,'w') as f:
+            f.write(summary)
+
     #Load chromosome sizes file if needed.
     if artdeco_dir.chrom_sizes_needed:
         if args.chrom_sizes_file and os.path.isfile(args.chrom_sizes_file):
@@ -480,6 +497,27 @@ def main():
             assign_genes(artdeco_dir.read_in_levels,args.read_in_threshold,args.read_in_fpkm,
                          artdeco_dir.read_in_assignments)
 
+        #Summarize output.
+        print('Summarizing readthrough output...')
+        summary_file = os.path.join(artdeco_dir.summary_dir,'readthrough_summary.txt')
+        if os.path.isfile(summary_file):
+            os.remove(summary_file)
+        expts = []
+        for f in os.listdir(artdeco_dir.bam_files_dir):
+            if f[-4:] == '.bam':
+                expt = f[:-4].replace('-', '_').replace(' ', '_')
+                expts.append(expt)
+
+        summary = summarize_readthrough_stats(artdeco_dir.read_in_levels,expts,'Read-In',args.summary_fpkm)+'\n'+\
+                  summarize_readthrough_stats(artdeco_dir.readthrough_levels,expts,'Readthrough',args.summary_fpkm)+\
+                  '\n'+summarize_read_in_assignments(artdeco_dir.read_in_assignments,expts,args.read_in_fpkm)
+
+        for line in summary.split('\n'):
+            print(line)
+
+        with open(summary_file,'w') as f:
+            f.write(summary)
+
     #Generate DoG files.
     if artdeco_dir.dogs_files:
 
@@ -489,10 +527,11 @@ def main():
 
         if artdeco_dir.dogs_beds:
 
-            print(f'Finding DoGs...\nGet genes with potential DoGs with minimum length of {args.min_dog_len} bp...')
+            print(f'Finding DoGs...\nGet genes with potential DoGs with minimum length of {args.min_dog_len} bp, a '+
+                  f'minimum coverage of {args.min_dog_coverage} FPKM, and screening window of {args.dog_window} bp...')
             screening_genes = get_dog_screening(artdeco_dir.genes_condensed,args.min_dog_len)
 
-            print(f'Generate initial screening BED file for DoGs with minimum length {args.min_dog_len} bp and window'+\
+            print(f'Generate initial screening BED file for DoGs with minimum length {args.min_dog_len} bp and window'+
                   f' size {args.dog_window} bp...')
             generate_screening_bed(screening_genes,args.min_dog_len,args.dog_window,args.home_dir)
 
@@ -557,6 +596,17 @@ def main():
             print('Generating raw expression data for all DoGs...')
             get_regions_exp((artdeco_dir.all_tag_dirs,artdeco_dir.all_dogs_bed,stranded,'-raw',artdeco_dir.dogs_dir,
                              min(args.cpu,len(artdeco_dir.all_tag_dirs))))
+
+        #Summarize DoG files.
+        summary = f'Summary for DoG finding with minimum length {args.min_dog_len} bp, minimum coverage of '+\
+                  f'{args.min_dog_coverage} FPKM, and screening window of {args.dog_window} bp\n'
+        summary += 'Summary of DoG lengths for all DoGs:\n'+summarize_dog_lens(artdeco_dir.all_dogs_bed)
+        for dogs_bed in artdeco_dir.all_dogs_beds:
+            summary += f'\nSummary of DoG lengths for {dogs_bed[:-4]}:\n'+summarize_dog_lens(dogs_bed)
+
+
+        for line in summary.split('\n'):
+            print(line)
 
     #Generate differential expression output.
     try:

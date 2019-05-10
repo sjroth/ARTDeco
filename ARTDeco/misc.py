@@ -30,6 +30,7 @@ class ARTDecoDir:
         self.diff_exp_dir = os.path.join(home_dir,'diff_exp')
         self.diff_exp_read_in_dir = os.path.join(home_dir,'diff_exp_read_in')
         self.diff_exp_dogs_dir = os.path.join(home_dir,'diff_exp_dogs')
+        self.summary_dir = os.path.join(home_dir,'summary_files')
 
         #Add nodes.
         self.dependency.add_nodes_from([self.preprocess_dir,self.quantification_dir,self.readthrough_dir,self.dogs_dir,
@@ -42,11 +43,15 @@ class ARTDecoDir:
         self.tag_dir_to_bam = {}
         for f in os.listdir(bam_files_dir):
             if f[-4:] == '.bam':
-                self.bam_files.append(f)
+                bam_file = os.path.join(bam_files_dir,f)
                 tag_dir = os.path.join(self.preprocess_dir,f[:-4])
+
+                self.bam_files.append(bam_file)
                 self.tag_dirs.add(tag_dir)
                 self.all_tag_dirs.append(tag_dir)
-                self.tag_dir_to_bam[tag_dir] = f
+                self.tag_dir_to_bam[tag_dir] = bam_file
+
+        self.all_tag_dirs.sort()
 
         #Preprocessing files.
         self.comparisons_file = os.path.join(self.preprocess_dir,'comparisons.reformatted.txt')
@@ -144,6 +149,8 @@ class ARTDecoDir:
                                             (tag_dir,dog+'bed'),(self.read_in_assignments,dog+'bed'),
                                             (tag_dir,dog+'raw.txt'),(tag_dir,dog+'fpkm.txt'),(dog+'bed',dog+'raw.txt'),
                                             (dog+'bed',dog+'fpkm.txt')])
+
+        self.all_dogs_beds.sort()
 
         self.dogs_files = {self.all_dogs_bed,self.all_dogs_fpkm,self.all_dogs_raw} | self.dogs_beds | self.dogs_raw |\
                           self.dogs_fpkm
@@ -328,6 +335,66 @@ def output_inferred_format(inferred_format):
 
     return out_str
 
+
+'''
+Define a function that can count the total number of reads given a flag for a BAM file.
+'''
+def count_reads(args):
+
+    bam_file,flag = args
+
+    if flag:
+        flag_cmd = [flag]
+    else:
+        flag_cmd = []
+
+    p = subprocess.Popen(['samtools','view','-c']+flag_cmd+[bam_file],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    output,err = p.communicate()
+
+    return int(output.strip())
+
+
+'''
+Define a function that can summarize file formats.
+'''
+def summarize_bam_files(bam_files,cpu,pe,stranded,flip):
+
+    #Get read counts.
+    cmds = []
+    for bam_file in bam_files:
+        cmds += [(bam_file,''),(bam_file,'-F 4')]
+    pool = Pool(processes=min(cpu,len(cmds)))
+    read_counts = pool.map(count_reads,cmds)
+    pool.close()
+
+    #Create file summary text.
+    out_text = f'{len(bam_files)} Experiments\n'
+
+    if pe:
+        pe_str = 'Paired-End'
+    else:
+        pe_str = 'Single-End'
+    if stranded:
+        stranded_str = 'Strand-Specific'
+        if flip:
+            orientation_str = 'Reverse-strand oriented'
+        else:
+            orientation_str = 'Forward-strand oriented'
+    else:
+        stranded_str = 'Unstranded'
+        orientation_str = ''
+
+    out_text += f'Files are {pe_str}, {stranded_str}'
+    if orientation_str:
+        out_text += f', {orientation_str}'
+    else:
+        out_text += ''
+
+    for i in range(len(bam_files)):
+        out_text += f'\nExperiment: {bam_files[i]}\n{read_counts[2*i]} Total Reads\n{read_counts[2*i+1]} Mapped Reads'
+
+    return out_text
+
 '''
 Define a function that will load an expression dataframe for a single experiment.
 '''
@@ -352,6 +419,7 @@ def load_exp(exp_file):
             new_name = col.split()[0]
             new_name = new_name.split('/')[-1]
             new_name = new_name.replace('-','_')
+            new_name = new_name.replace(' ','_')
             rename_cols[col] = new_name
             tag_cols.append(new_name)
     df = df.rename(rename_cols,axis=1)
