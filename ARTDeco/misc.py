@@ -196,7 +196,8 @@ class ARTDecoDir:
 
             #Add edges.
             self.dependency.add_edges_from([(self.diff_exp_dir,diff_exp),(self.gene_raw,diff_exp),
-                                            (self.diff_exp_read_in_dir,diff_exp_read_in),(diff_exp,diff_exp_read_in),
+                                            (self.diff_exp_read_in_dir,diff_exp_read_in),
+                                            (self.read_in_levels,diff_exp_read_in),(diff_exp,diff_exp_read_in),
                                             (diff_exp_read_in,assignments),(self.diff_exp_dogs_dir,diff_exp_dogs),
                                             (self.all_dogs_raw,diff_exp_dogs)])
 

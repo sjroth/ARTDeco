@@ -33,6 +33,18 @@ Once the prerequisites are installed, go into the same directory as setup.py and
 python setup.py install
 ```
 ARTDeco should be installed. In the future, there will be both pip and conda options for installation.
+### Quick Start Guide
+Here is a quick start guide assuming that all prerequisites are installed and that all files are prepared (details on preparing files [here](#preparing-files)).
+
+If you want to run ARTDeco without differential expression information, run the following command:
+```
+ARTDeco -home-dir ARTDECO_DIR -bam-files-dir BAM_FILES_DIR -gtf-file GTF_FILE -cpu NUM_CPU -chrom-sizes-file CHROM_SIZES_FILE
+```
+If you want to run ARTDeco with differential expression information, run the following command:
+```
+ARTDeco -home-dir ARTDECO_DIR -bam-files-dir BAM_FILES_DIR -gtf-file GTF_FILE -cpu NUM_CPU -chrom-sizes-file CHROM_SIZES_FILE -meta-file META_FILE -comparisons-file COMPARISONS_FILE
+```
+Both of these commands will generate all ARTDeco outputs. The home directory (-home-dir) is the directory in which the ARTDeco results file structure will reside (structure outlined [here](#interpreting-artdeco-outputs)) and the BAM files directory (-bam-files-dir) is where your BAM files reside. The defaults for these are the present directory so it may be convenient to create a directory, place the BAM files there, and run ARTDeco without those flags specified. The GTF file (-gtf-file) is a gene annotation and the chromosome sizes file contains the sizes of the chromosomes of the reference genome. The format of these is discussed [here](#preparing-files). Similarly, the meta and comparisons files (-meta-file and -comparisons-file) contain information for the experimental design for DESeq2. Their details are [here](#preparing-files). How to interpret ARTDeco outputs is covered below in [Interpreting ARTDeco Outputs](#interpreting-artdeco-outputs) section for information on how to understand these outputs.
 ### Preparing files
 Once all prerequisites have been installed, there are a few files that are necessary before starting. At a bare minimum, you need a GTF file for your genome of interest as well as a chromosome sizes file. 
 
@@ -68,16 +80,11 @@ In this section, standard usage for each mode of  ARTDeco will be outlined. The 
 ``` 
 ARTDeco -h
 ```
-Because ARTDeco uses a standard output structure, this allows it to compute the existence of various file dependencies in order to both reduce redundancy and run time. There is an option (-overwrite) which tells the program to regenerate all files for the given mode. This is useful if you are changing one of the user inputs such as the GTF file. NOTE: this computation of dependencies is kept relatively mode-specific because ARTDeco does not use an engine like Snakemake to autocompute all dependencies (perhaps for a future version). Thus, these are the following sequences recommended for running ARTDeco (omit the last step if you aren't performing differential expression analysis):
-``` 
-preprocess --> intergenic --> diff_exp_read_in
-                          |
-                          |
-                          --> get_dogs --> diff_exp_dogs
-```
-The final note on running ARTDeco is that all of the BAM files should be from the same experimental set. Not only does this make sense in terms of good experimental practice, ARTDeco is built to generate files differently for differently formatted BAM files. The users can specify these formats in the command line or ARTDeco can infer the file format of the BAM (i.e., paired-end vs. single-end, stranded-specific vs. unstranded, and forward vs. reverse strand orientation). These formats are necessary when generating many of the files (e.g., strandedness is important for counting reads for various regions).
+Because ARTDeco uses a standard output structure, this allows it to compute the existence of various file dependencies in order to both reduce redundancy and run time. There is an option (-overwrite) which tells the program to regenerate all files. However, this may be computationally onerous as you may want to alter only one or a few sections. For this reason, ARTDeco has several modes (outlined below) that allow you to specify which outputs are generated. Best practice is to run ARTDeco all the way through while specifying as many parameters as possible, examine outputs, and then regenerate specified files with new thresholds where appropriate. Some of the philosophy behind this is specified in the [Assorted Usage Notes Section](#assorted-usage-notes).
+
+The final note on running ARTDeco is that all of the BAM files should be from the same experimental set. Not only does this make sense in terms of good experimental practice, ARTDeco is built to generate files differently for differently formatted BAM files. The users can specify these formats in the command line or ARTDeco can infer the file format of the BAM (i.e., paired-end vs. single-end, stranded-specific vs. unstranded, and forward vs. reverse strand orientation). These formats are necessary when generating many of the files (e.g., strandedness is important for counting reads for various regions). When in doubt, specify your own formats using the -layout (PE or SE), -stranded (True or False), and -orientation (Forward or Reverse).
 ### Preprocessing mode
-ARTDeco's preprocessing mode generates most of the prerequisite files needed for downstream analysis. Specifically, these files include the following:
+ARTDeco's preprocessing mode generates the prerequisite files needed for downstream analysis. Specifically, these files include the following:
 ``` 
 genes.full.bed -- A BED file conversion of the user-provided GTF file as generated by BEDOPS. Used for generation of genes_condensed.bed and inference of BAM file format
 genes_condensed.bed -- A BED file of condensed gene annotations (all protein coding genes with the minimum start coordinate and maximum stop coordinate).
@@ -85,60 +92,79 @@ gene_to_transcript.txt -- A tab-delimited file mapping transcripts to genes.
 read_in.bed -- A BED file of read-in regions.
 readthrough.bed -- A BED file of readthrough/downstream regions.
 Homer tag directories of the same name as the BAM files.
+meta.reformatted.txt -- Reformatted meta file. Only generated if meta is provided as input.
+comparisons.reformatted.txt-Reformatted comparisons file. Only generated if meta is provided as input.
 ```
 All of these files reside in the preprocess_files directory.
 
 You can run preprocessing using the following command:
 ``` 
-ARTDeco -mode preprocess -gtf-file GTF_FILE -chrom-sizes-file CHROM_SIZES_FILE [-home-dir HOME_DIR -cpu CPU -read-in-dist READ_IN_DIST -readthrough-dist READTHROUGH_DIST -intergenic-min-len INTERGENIC_MIN_LEN -intergenic-max-len INTERGENIC_MAX_LEN]
+ARTDeco -mode preprocess -gtf-file GTF_FILE -chrom-sizes-file CHROM_SIZES_FILE [-home-dir HOME_DIR -bam-files-dir BAM_FILES_DIR -cpu CPU -read-in-dist READ_IN_DIST -readthrough-dist READTHROUGH_DIST -intergenic-min-len INTERGENIC_MIN_LEN -intergenic-max-len INTERGENIC_MAX_LEN -meta-file META_FILE -comparisons-file COMPARISONS_FILE]
 ```
 The required arguments are -mode, -gtf-file, and -chrom-sizes-file. All other arguments are optional. Their default values are as follows:
 ``` 
--home-dir -- Directory in which ARTDeco is run (and contains BAM files). Default is current directory.
+-home-dir -- Directory in which ARTDeco is run. Default is current directory.
+-bam-files-dir -- Directory in which the BAM files reside. Default is the current directory. 
 -cpu -- Number of CPU to use. Default is 1.
 -read-in-dist -- Distance upstream of gene to place read-in region. Default is 1 kb.
 -readthrough-dist -- Distance downstream of gene to place readthrough/downstream region. Default is 5 kb.
 -intergenic-min-len -- Minimum length of an intergenic region. Default is 100 bp.
 -intergenic-max-len -- Maximum length of an intergenic region. Default is 15 kb.
+-meta-file -- Meta file as described above. Default is none.
+-comparisons-file -- Comparisons file as described above. Default is no file. Program will generate all-by-all comparisons file if there is a meta file specified.
 ```
-### Intergenic mode
+### Readthrough mode
 ARTDeco's intergenic mode generates some of the summary files that contain the read-in and readthrough-levels as well as read-in gene assignments. Additionally, intergenic mode generates quantification files for genes and intergenic regions. Because this mode requires the BED file from the converted GTF file and a gene-to-transcript mapping, it will regenerate gene annotation files in preprocess_files if they do not exist or overwrite is specified. NOTE: no other required files will be regenerated and you will get an error message if you do not generate those files by running the [preprocessing](#preprocessing-mode) mode. If overwrite is specified, these are the files generated:
 ``` 
 ---Preprocessing files---
 genes.full.bed -- A BED file conversion of the user-provided GTF file as generated by BEDOPS. Used for generation of genes_condensed.bed and inference of BAM file format
 genes_condensed.bed -- A BED file of condensed gene annotations (all protein coding genes with the minimum start coordinate and maximum stop coordinate).
 gene_to_transcript.txt -- A tab-delimited file mapping transcripts to genes.
+read_in.bed -- A BED file of read-in regions.
+readthrough.bed -- A BED file of readthrough/downstream regions.
+Homer tag directories of the same name as the BAM files.
 ---Quantification files---
 gene.exp.fpkm.txt -- Gene expression in FPKM.
 gene.exp.raw.txt -- Raw counts for gene expression.
 max_isoform.txt -- Maximum isoform for each gene.
 read_in.raw.txt -- Raw counts for read-in regions.
 readthrough.raw.txt -- Raw counts for readthrough/downstream regions.
----Intergenic files---
+---Readthrough files---
 read_in_assignments.txt -- Assignment of primary induction and read-in genes with read-in level for each experiment.
 read_in.txt -- Combination of gene expression and read-in quantification information. Contains read-in levels.
 readthrough.txt -- Combination of gene expression and readthrough quantification information. Contains readthrough levels.
 ```
-Preprocessing files reside in the preprocess_files directory, quantification files reside in the quantification directory and intergenic files reside in the intergenic directory.
+Preprocessing files reside in the preprocess_files directory, quantification files reside in the quantification directory and readthrough files readthrough in the intergenic directory.
 
-You can run intergenic mode using the following command:
+If you have already run preprocess mode, you can run readthrough mode using the following command:
 ``` 
-ARTDeco -mode intergenic -gtf-file GTF_FILE [-home-dir -cpu CPU -read-in-threshold READ_IN_THRESHOLD -read-in-fpkm READ_IN_FPKM]
+ARTDeco -mode readthrough -gtf-file GTF_FILE [-home-dir HOME_DIR -bam-files-dir BAM_FILES_DIR -cpu CPU -read-in-threshold READ_IN_THRESHOLD -read-in-fpkm READ_IN_FPKM]
 ```
 The required arguments are -mode and -gtf-file. All other arguments are optional. Their default values are as follows:
 ``` 
 -home-dir -- Directory in which ARTDeco is run. Default is current directory.
+-bam-files-dir -- Directory in which the BAM files reside. Default is the current directory.
 -cpu -- Number of CPU to use. Default is 1.
 -read-in-threshold -- Threshold for read-in level for assigning a gene as a read-in gene. Default value is 0.
 -read-in-fpkm -- Threshold for gene expression in FPKM for assigning a gene as a read-in gene. Default value is 0.25 FPKM.
 ```
+If you haven't run preprocess mode, include the command line options there.
 ### DoG Transcript Discovery mode
-ARTDeco's get_dogs mode discovers DoG transcripts for each BAM file. In addition to this, it merges all DoG annotations into a single BED file and quantifies all of these files (raw tag counts and FPKM). Similar to intergenic mode, get_dogs mode requires gene annotations from preprocessing mode (both full and condensed BED files) so they will be generated if they are not present or if an overwrite is specified. Again, other prerequisite files will not be regenerated so be sure to run [preprocessing](#preprocessing-mode) and [intergenic](#intergenic-mode) modes. If overwrite is specified, these are the files generated:
+ARTDeco's get_dogs mode discovers DoG transcripts for each BAM file. In addition to this, it merges all DoG annotations into a single BED file and quantifies all of these files (raw tag counts and FPKM). Similar to intergenic mode, get_dogs mode requires gene annotations from preprocessing mode (both full and condensed BED files) so they will be generated if they are not present or if an overwrite is specified. Again, other prerequisite files will not be regenerated so be sure to run [preprocessing](#preprocessing-mode) and [Readthrough](#readthrough-mode) modes. If overwrite is specified, these are the files generated:
 ``` 
 ---Preprocessing files---
 genes.full.bed -- A BED file conversion of the user-provided GTF file as generated by BEDOPS. Used for generation of genes_condensed.bed and inference of BAM file format
 genes_condensed.bed -- A BED file of condensed gene annotations (all protein coding genes with the minimum start coordinate and maximum stop coordinate).
 gene_to_transcript.txt -- A tab-delimited file mapping transcripts to genes.
+read_in.bed -- A BED file of read-in regions.
+---Quantification files---
+gene.exp.fpkm.txt -- Gene expression in FPKM.
+gene.exp.raw.txt -- Raw counts for gene expression.
+max_isoform.txt -- Maximum isoform for each gene.
+read_in.raw.txt -- Raw counts for read-in regions.
+---Readthrough files---
+read_in_assignments.txt -- Assignment of primary induction and read-in genes with read-in level for each experiment.
+read_in.txt -- Combination of gene expression and read-in quantification information. Contains read-in levels.
 ---DoG files---
 BAM_PREFIX.dogs.bed -- BED file of DoGs for each experiment BAM_PREFIX.
 BAM_PREFIX.dogs.fpkm.txt -- DoG expression in FPKM for each experiment BAM_PREFIX.
@@ -147,35 +173,48 @@ all_dogs.bed -- BED file of DoGs for all experiments.
 all_dogs.fpkm.txt -- DoG expression in FPKM for all of the DoGs in all experiments.
 all_dogs.raw.txt -- DoG expression in raw counts for all of the DoGs in all experiments.
 ```
-Preprocessing files reside in the preprocess_files directory and DoG files reside in the dogs directory.
+Preprocessing files reside in the preprocess_files directory, the quantification files reside in the quantification directory, the readthrough files reside in the readthrough directory and DoG files reside in the dogs directory.
 
-You can run DoG discovery mode using the following command:
+If you have run preprocess and/or readthrough mode, you can run DoG discovery mode using the following command:
 ``` 
-ARTDeco -mode get_dogs -gtf-file GTF_FILE -chrom-sizes-file CHROM_SIZES_FILE [-home-dir HOME_DIR -cpu CPU -min-dog-len MIN_DOG_LEN -dog_window DOG_WINDOW -min_dog_coverage MIN_DOG_COVERAGE]
+ARTDeco -mode get_dogs -gtf-file GTF_FILE -chrom-sizes-file CHROM_SIZES_FILE [-home-dir HOME_DIR -bam-files-dir BAM_FILES_DIR -cpu CPU -min-dog-len MIN_DOG_LEN -dog_window DOG_WINDOW -min_dog_coverage MIN_DOG_COVERAGE]
 ```
 The required arguments are -mode, -gtf-file, and -chrom-sizes-file. All other arguments are optional. Their default values are as follows:
 ``` 
 -home-dir -- Directory in which ARTDeco is run. Default is current directory.
+-bam-files-dir -- Directory in which the BAM files reside. Default is the current directory.
 -cpu -- Number of CPU to use. Default is 1.
 -min-dog-len -- Minimum DoG length. Default is 4 kb.
 -dog-window -- DoG window size. Default is 500 bp.
 -min-dog-coverage -- Minimum FPKM for DoG discovery. Default is 0.1 FPKM.
 ```
+If you have not run preprocess or readthrough modes, include their parameters as well.
 ### Differential Expression with Read-In Information mode
-ARTDeco's diff_exp_read_in mode performs differential expression analysis on gene expression and pairs it with read-in information. It also assigns read-in genes that are condition-specific by leveraging differential expression information as well as read-in levels. As with intergenic and get_dogs modes, be sure to run previous modes ([preprocess](#preprocessing-mode) and [intergenic](#intergenic-mode)) in order to generate all prerequisites. If overwrite is specified, these are the files generated:
+ARTDeco's diff_exp_read_in mode performs differential expression analysis on gene expression and pairs it with read-in information. It also assigns read-in genes that are condition-specific by leveraging differential expression information as well as read-in levels. As with intergenic and get_dogs modes, be sure to run previous modes ([preprocess](#preprocessing-mode) and [readthrough](#readthrough-mode)) in order to generate all prerequisites. If overwrite is specified, these are the files generated:
 ``` 
 ---Preprocessing files---
+genes.full.bed -- A BED file conversion of the user-provided GTF file as generated by BEDOPS. Used for generation of genes_condensed.bed and inference of BAM file format
+genes_condensed.bed -- A BED file of condensed gene annotations (all protein coding genes with the minimum start coordinate and maximum stop coordinate).
+gene_to_transcript.txt -- A tab-delimited file mapping transcripts to genes.
+read_in.bed -- A BED file of read-in regions.
 meta.reformatted.txt -- A reformatted meta file. Reformatted so that it plays nicely with DESeq2.
 comparisons.reformatted.txt -- A reformatted comparisons file. Reformatted so that it plays nicely with DESeq2.
+---Quantification files---
+gene.exp.fpkm.txt -- Gene expression in FPKM.
+gene.exp.raw.txt -- Raw counts for gene expression.
+max_isoform.txt -- Maximum isoform for each gene.
+read_in.raw.txt -- Raw counts for read-in regions.
+---Readthrough files---
+read_in.txt -- Combination of gene expression and read-in quantification information. Contains read-in levels.
 ---Differential expression files---
 CONDITION1-CONDITION2-results.txt -- DESeq2 results for comparisons for CONDITION1 vs. CONDITION2. Generated for each pair of conditions as specified.
 ---Differential expression with read-in information files---
 CONDITION1-CONDITION2-read_in.txt -- DESeq2 results paired with read-in information for CONDITION1 vs. CONDITION2. Generated for each pair of conditions as specified.
 CONDITION1-CONDITION2-read_in_assignment.txt -- Assignment of primary induction and read-in genes by combining DESeq2 information with read-in genes.
 ```
-Preprocessing files reside in the preprocess_files directory, differential expression files are reside in the diff_exp directory, and differential expression with read-in information files reside in the diff_exp_read_in directory.
+Preprocessing files reside in the preprocess_files directory, quantification files reside in the quantification directory, readthrough files reside in the readthrough directory, differential expression files are reside in the diff_exp directory, and differential expression with read-in information files reside in the diff_exp_read_in directory.
 
-You can run differential expression with read-in information mode using the following command:
+If you have already run preprocess and readthrough modes, you can run differential expression with read-in information mode using the following command:
 ``` 
 ARTDeco -mode diff_exp_read_in -meta-file META_FILE [-home-dir HOME_DIR -read-in-threshold READ_IN_THRESHOLD -read-in-fpkm READ_IN_FPKM -comparisons-file COMPARISONS_FILE -log2FC LOG2FC -pval PVAL]
 ```
@@ -188,18 +227,35 @@ The required arguments are -mode and -meta-file (not needed if meta.reformatted.
 -log2FC -- Minimum log2 fold change for considering a gene upregulated. Default is 2.
 -pval -- Maximum p-value for considering a gene upregulated. Default is 0.05.
 ```
+If you haven't run preprocess or readthrough modes, include their parameters as well.
 ### DoG Differential Expression mode
-ARTDeco's diff_exp_dogs mode performs differential expression analysis on DoGs discovered in get_dogs mode. As with get_dogs mode, be sure to run previous modes ([preprocess](#preprocessing-mode), [intergenic](#intergenic-mode), and [get_dogs](#dog-transcript-discovery-mode)) in order to generate all prerequisites. If overwrite is specified, these are the files generated:
-``` 
+ARTDeco's diff_exp_dogs mode performs differential expression analysis on DoGs discovered in get_dogs mode. As with get_dogs mode, be sure to run previous modes ([preprocess](#preprocessing-mode), [readthrough](#readthrough-mode), and [get_dogs](#dog-transcript-discovery-mode)) in order to generate all prerequisites. If overwrite is specified, these are the files generated:
+```
 ---Preprocessing files---
+genes.full.bed -- A BED file conversion of the user-provided GTF file as generated by BEDOPS. Used for generation of genes_condensed.bed and inference of BAM file format
+genes_condensed.bed -- A BED file of condensed gene annotations (all protein coding genes with the minimum start coordinate and maximum stop coordinate).
+gene_to_transcript.txt -- A tab-delimited file mapping transcripts to genes.
+read_in.bed -- A BED file of read-in regions.
 meta.reformatted.txt -- A reformatted meta file. Reformatted so that it plays nicely with DESeq2.
 comparisons.reformatted.txt -- A reformatted comparisons file. Reformatted so that it plays nicely with DESeq2.
+---Quantification files---
+gene.exp.fpkm.txt -- Gene expression in FPKM.
+gene.exp.raw.txt -- Raw counts for gene expression.
+max_isoform.txt -- Maximum isoform for each gene.
+read_in.raw.txt -- Raw counts for read-in regions.
+---Readthrough files---
+read_in_assignments.txt -- Assignment of primary induction and read-in genes with read-in level for each experiment.
+read_in.txt -- Combination of gene expression and read-in quantification information. Contains read-in levels.
+---DoG files---
+BAM_PREFIX.dogs.bed -- BED file of DoGs for each experiment BAM_PREFIX.
+all_dogs.bed -- BED file of DoGs for all experiments.
+all_dogs.raw.txt -- DoG expression in raw counts for all of the DoGs in all experiments.
 ---DoG Differential Expression files---
 CONDITION1-CONDITION2-results.txt -- DESeq2 results for comparisons for CONDITION1 vs. CONDITION2. Generated for each pair of conditions as specified.
-```
-Preprocessing files reside in the preprocess_files directory and differential expression files are reside in the diff_exp directory.
+``` 
+Preprocessing files reside in the preprocess_files directory, quantification files reside in the quantification directory, readthrough files reside in readthrough directory, DoG files reside in dogs directory, and DoG differential expression files are reside in the diff_exp_dogs directory.
 
-You can run DoG differential expression mode using the following command:
+If you have run the preprocess, readthrough, and get_dogs modes, you can run DoG differential expression mode using the following command:
 ``` 
 ARTDeco -mode diff_exp_dogs -meta-file META_FILE [-home-dir HOME_DIR -comparisons-file COMPARISONS_FILE]
 ```
@@ -208,13 +264,13 @@ The required arguments are -mode and -meta-file (not needed if meta.reformatted.
 -home-dir -- Directory in which ARTDeco is run. Default is current directory.
 -comparisons-file -- Comparisons file as described above. Default is no file. Program will generate all-by-all comparisons file.
 ```
+If you haven't run preprocess, readthrough, or get_dogs modes, include their parameters in the command.
 ## Interpreting ARTDeco Outputs
 This section outlines how to interpret the major outputs from running ARTDeco. Rather than outlining the format of every single file, we will focus on results pertaining to interpreting levels of readthrough.
 
 Before focusing on those specific files, let's go over the directory structure that ARTDeco creates. As mentioned above, the user specifies a home directory that contains all of the BAM files. Within this directory, ARTDeco creates a standardized structure where all of the files will be stored. This makes it so that ARTDeco does not recompute all requirements each time (unless specified with a -overwrite command). It also makes dependency management quite easy. (Note: this is subject to change if a better structure/formatting scheme is suggested/implemented). Here is the basic directory structure if you ran all usage modes:
 ``` 
 /home-dir (user-specified)
-    BAM_FILES
     /diff_exp
         CONDITION1-CONDITION2-results.txt (for each CONDITION1 vs. CONDITION2 as specified by comparisons file)
     /diff_exp_dogs
@@ -248,6 +304,11 @@ Before focusing on those specific files, let's go over the directory structure t
         max_isoform.txt
         read_in.raw.txt
         readthrough.raw.txt
+    /summary_files
+        bam_summary.txt
+        diff_exp_read_in_summary.txt
+        dogs_summary.txt
+        readthrough_summary.txt
 ```
 Now, let's go through the files that are most relevant to interpreting findings on transcriptional readthrough.
 ### Preprocessing files
@@ -291,12 +352,16 @@ Using the quantification of all_dogs.bed (i.e., all_dogs.raw.txt) as well as the
 ENSG00000086300	4433.294680707477	3.651205201831191	0.2574798821695928	14.180545567541749	1.2090294748081953e-45	5.162555857430994e-44
 ```
 For the sake of results, it is important to note the caveat of merging DoGs in the all_dogs.bed file: ARTDeco takes the longest possible DoG from the individual samples for a given gene. This can affect interpretation.
+### Summary files
+These are files that summarize the output for easy characterization of the level of readthrough. bam_summary.txt contains information about the format and characteristics of the BAM files, diff_exp_read_in_summary.txt contains the number of primary induction and read-in genes for each comparison, dogs_summary.txt contains summary statistics for the lengths and expression for all DoGs inferred by ARTDeco, and readthrough_summary.txt contains summary statistics for read-in and readthrough levels for all experiments as well as inferred read-in genes. Any time any operations for these directories is performed a new summary file is created.
 ## Assorted Usage Notes
 ARTDeco can theoretically take any genomic data that reflects the transcriptional state. This includes polyA-RNAseq, total RNAseq, RNA PolII ChIPseq, mNETseq, GROseq, etc. However, it should be noted that strand-specific data is preferable where possible. The lack of strandedness lowers the number of possible read-in and readthrough genes (because the transcriptional signal can come from either direction). Additionally, DoG finding is unlikely to work well because of similar issues.
 
-Another consideration is the characteristics of your data. The default settings tend to work well for stranded total RNAseq, but be sure to examine your own data to see if the assumptions fit. For example, when using RNA PolII ChIPseq, it is wise to set the readthrough distance to longer than default because that data typically has increased signal downstream of annotated transcription termination sites. This highlights the need for understanding the nature of your data prior to applying a computational technique (always a good practice).
+Along these lines, ARTDeco's file format inference for BAM files is going to be imperfect because RSeQC bases their inferences upon gene annotation. The more intergenic reads there are, the worse the inference is. For this reason, the user should try to specify the file format whenever possible.
 
-The distribution of read-in and readthrough levels is generally reflective of total level of transcriptional readthrough present in a dataset. With this in mind, the median readthrough level is a good potential summary statistic for quantifying readthrough. However, you may want to filter for higher expressing genes as this leaves you less liable to fall victim to sources of error due to gene annotation and noise.
+Another consideration is the characteristics of your data. The default settings tend to work well for stranded total RNAseq, but be sure to examine your own data to see if the assumptions fit. For example, when using RNA PolII ChIPseq, it is wise to set the readthrough distance to longer than default because that data typically has increased signal downstream of annotated transcription termination sites. This highlights the need for understanding the nature of your data prior to applying a computational technique (always a good practice). 
+
+The distribution of read-in and readthrough levels is generally reflective of total level of transcriptional readthrough present in a dataset. With this in mind, the median readthrough level (50% in the readthrough summary file for readthrough levels) is a good potential summary statistic for quantifying readthrough. However, you may want to filter for higher expressing genes as this leaves you less liable to fall victim to sources of error due to gene annotation and noise. This filtering is done automatically at a default of 1 FPKM using the -summary-fpkm parameter in the command line but higher or lower thresholds may make more sense given the data.
 
 If there are other concerns, I'll add them here.
 ## Author/Support
