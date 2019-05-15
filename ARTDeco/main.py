@@ -683,7 +683,7 @@ def main():
                 print('Creating differential expression for DoGs directory...')
                 os.mkdir(artdeco_dir.diff_exp_dogs_dir)
 
-            print('Running DESeq2')
+            print('Running DESeq2 on DoGs...')
             dds = load_deseq_dataset(artdeco_dir.all_dogs_raw,artdeco_dir.meta_file)
             dds_results = run_deseq(dds)
 
