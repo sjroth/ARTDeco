@@ -237,7 +237,7 @@ class ARTDecoDir:
             paths = nx.single_target_shortest_path(self.dependency,f)
             for out_file in set(flatten(paths.values())):
                 if overwrite:
-                    if not os.path.isdir(out_file):
+                    if not os.path.isdir(out_file) or out_file in self.tag_dirs:
                         out_files.add(out_file)
                 else:
                     if not os.path.isfile(out_file) and not os.path.isdir(out_file):

@@ -188,7 +188,7 @@ def summarize_readthrough_stats(readthrough_file,expts,mode,num_genes):
 
     output = mode+' Summary'
     for expt in expts:
-        output += f'\n{mode} levels for {expt} with FPKM cutoff of {summary_fpkm}:\n'
+        output += f'\n{mode} levels for {expt} for top {num_genes} genes:\n'
 
         summary = df[[expt+' Gene FPKM',f'{expt} log2Ratio {mode} vs. Gene']]
         summary = summary.nlargest(num_genes,expt+' Gene FPKM')
