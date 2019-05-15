@@ -200,13 +200,14 @@ def summarize_readthrough_stats(readthrough_file,expts,mode,num_genes):
 '''
 Define a function that can summarize read-in assignments.
 '''
-def summarize_read_in_assignments(assignment_file,expts,read_in_fpkm):
+def summarize_read_in_assignments(assignment_file,expts,read_in_threshold,read_in_fpkm):
 
     df = pd.read_csv(assignment_file, sep='\t')
 
     output = 'Read-In Assignments for each experiment'
     for expt in expts:
-        output += f'\nRead-In Assignments for {expt} with FPKM cutoff of {read_in_fpkm}:\n'
+        output += f'\nRead-In Assignments for {expt} with read-in level threshold of {read_in_threshold} and FPKM '+\
+                  f'cutoff of {read_in_fpkm}\n'
         assignments = '\n'.join(df.groupby(expt+' Assignment').count()['Gene ID'].to_string().split('\n')[1:])
         output += assignments
 

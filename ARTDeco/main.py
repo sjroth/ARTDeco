@@ -510,7 +510,8 @@ def main():
 
         summary = summarize_readthrough_stats(artdeco_dir.read_in_levels,expts,'Read-In',args.summary_genes)+'\n'+\
                   summarize_readthrough_stats(artdeco_dir.readthrough_levels,expts,'Readthrough',args.summary_genes)+\
-                  '\n'+summarize_read_in_assignments(artdeco_dir.read_in_assignments,expts,args.read_in_fpkm)
+                  '\n'+summarize_read_in_assignments(artdeco_dir.read_in_assignments,expts,args.read_in_threshold,
+                                                     args.read_in_fpkm)
 
         for line in summary.split('\n'):
             print(line)
@@ -658,7 +659,9 @@ def main():
 
             #Summarize output.
             summary_file = os.path.join(artdeco_dir.summary_dir,'diff_exp_read_in_summary.txt')
-            summary = 'Summary for read-in assignments using differential expression'
+            summary = 'Summary for read-in assignments using differential expression\nThresholds are log2 fold change'+\
+                      f' > {args.log2FC}, p-value < {args.pval}, FPKM > {args.read_in_fpkm}, and read-in level '+\
+                      f' threshold is {args.read_in_threshold}'
             for condition1,condition2 in comparisons:
                 summary += '\n'+summarize_diff_exp_read_in_assignments(os.path.join(artdeco_dir.diff_exp_read_in_dir,
                                                                 f'{condition1}-{condition2}-read_in_assignment.txt'))
