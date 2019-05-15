@@ -182,7 +182,7 @@ def assign_genes(read_in_file,read_in_threshold,read_in_fpkm,out_file):
 '''
 Define a function that can summarize read-in and readthrough levels.
 '''
-def summarize_readthrough_stats(readthrough_file,expts,mode,summary_fpkm):
+def summarize_readthrough_stats(readthrough_file,expts,mode,num_genes):
 
     df = pd.read_csv(readthrough_file,sep='\t')
 
@@ -191,7 +191,7 @@ def summarize_readthrough_stats(readthrough_file,expts,mode,summary_fpkm):
         output += f'\n{mode} levels for {expt} with FPKM cutoff of {summary_fpkm}:\n'
 
         summary = df[[expt+' Gene FPKM',f'{expt} log2Ratio {mode} vs. Gene']]
-        summary = summary[summary[expt+' Gene FPKM'] > summary_fpkm]
+        summary = summary.nlargest(num_genes,expt+' Gene FPKM')
         summary = '\n'.join(summary[f'{expt} log2Ratio {mode} vs. Gene'].describe().to_string().split('\n'))
         output += summary
 

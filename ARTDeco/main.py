@@ -52,8 +52,8 @@ def main():
                         default=0)
     parser.add_argument('-read-in-fpkm',help='Minimum FPKM value for considering a gene. Default is 0.25 FPKM.',
                         type=float,default=0.25)
-    parser.add_argument('-summary-fpkm', help='Minimum FPKM value for considering a gene for summarizing readthrough'+\
-                                              ' levels. Default is 1 FPKM.',type=float, default=1)
+    parser.add_argument('-summary-genes', help='Number of genes for summarizing readthrough levels. Default is 1000.',
+                        type=int,default=1000)
     parser.add_argument('-overwrite',help='Indicate whether to overwrite existing files',default=False,
                         action='store_true')
     parser.add_argument('-meta-file',help='Meta file',action='store',type=str)
@@ -508,8 +508,8 @@ def main():
                 expt = f[:-4].replace('-', '_').replace(' ', '_')
                 expts.append(expt)
 
-        summary = summarize_readthrough_stats(artdeco_dir.read_in_levels,expts,'Read-In',args.summary_fpkm)+'\n'+\
-                  summarize_readthrough_stats(artdeco_dir.readthrough_levels,expts,'Readthrough',args.summary_fpkm)+\
+        summary = summarize_readthrough_stats(artdeco_dir.read_in_levels,expts,'Read-In',args.summary_genes)+'\n'+\
+                  summarize_readthrough_stats(artdeco_dir.readthrough_levels,expts,'Readthrough',args.summary_genes)+\
                   '\n'+summarize_read_in_assignments(artdeco_dir.read_in_assignments,expts,args.read_in_fpkm)
 
         for line in summary.split('\n'):
