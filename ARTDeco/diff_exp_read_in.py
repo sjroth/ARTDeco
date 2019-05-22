@@ -4,6 +4,7 @@ Module that contains functions for running diff_exp_read_in mode.
 import pandas as pd
 import numpy as np
 import os
+import functools
 
 '''
 Define a function that can get all of the condition information.
@@ -91,10 +92,18 @@ def assign_read_in_genes(diff_exp_read_in_file,log2FC,pval,FPKM,read_in_threshol
 '''
 Define a function that can summarize outputs for read-in assignments using differential expression.
 '''
-def summarize_diff_exp_read_in_assignments(assignment_file):
+def summarize_diff_exp_read_in_assignments(assignment_files,log2FC,pval,read_in_fpkm,read_in_threshold):
 
-    df = pd.read_csv(assignment_file,sep='\t')
-    output = f'Summary of Read-In Assignments for {assignment_file.split("/")[-1][:-23]} comparison:\n'+\
-             '\n'.join(df.groupby('Assignment').count()['Gene ID'].to_string().split('\n')[1:])
+    output = 'Summary for read-in assignments using differential expression\nThresholds are log2 fold change > '+\
+             f'{log2FC}, p-value < {pval}, FPKM > {read_in_fpkm}, and read-in level threshold is {read_in_threshold}\n'
 
-    return output
+    summary_dfs = []
+    for assignment_file in assignment_files:
+        df = pd.read_csv(assignment_file,sep='\t')
+        summary = pd.DataFrame(df.groupby('Assignment').count()['Gene ID'])
+        summary.columns = [assignment_file.split('/')[-1][:-23]]
+        summary_dfs.append(summary)
+
+    output_df = functools.reduce(lambda lef,right: pd.merge(lef,right,left_index=True,right_index=True),summary_dfs)
+
+    return  output+'\n'.join(output_df.to_string().split('\n'))

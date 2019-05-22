@@ -135,6 +135,7 @@ class ARTDecoDir:
         self.dogs_bed_to_tagdir = {}
         self.dogs_raw = set()
         self.dogs_fpkm = set()
+        self.all_dogs_fpkm_expts = []
         for tag_dir in self.tag_dirs:
             dog = os.path.join(home_dir,'dogs',tag_dir.split('/')[-1])+'.dogs.'
 
@@ -143,6 +144,7 @@ class ARTDecoDir:
             self.dogs_bed_to_tagdir[dog+'bed'] = tag_dir
             self.dogs_raw.add(dog+'raw.txt')
             self.dogs_fpkm.add(dog+'fpkm.txt')
+            self.all_dogs_fpkm_expts.append(dog+'fpkm.txt')
 
             self.dependency.add_nodes_from([dog+'bed',dog+'raw.txt',dog+'fpkm.txt'])
             self.dependency.add_edges_from([(self.dogs_dir,dog+'bed'),(self.genes_condensed,dog+'bed'),
@@ -354,7 +356,6 @@ def count_reads(args):
 
     return int(output.strip())
 
-
 '''
 Define a function that can summarize file formats.
 '''
@@ -387,14 +388,19 @@ def summarize_bam_files(bam_files,cpu,pe,stranded,flip):
 
     out_text += f'Files are {pe_str}, {stranded_str}'
     if orientation_str:
-        out_text += f', {orientation_str}'
+        out_text += f', {orientation_str}\n'
     else:
-        out_text += ''
+        out_text += '\n'
 
+    out_lst = []
     for i in range(len(bam_files)):
-        out_text += f'\nExperiment: {bam_files[i]}\n{read_counts[2*i]} Total Reads\n{read_counts[2*i+1]} Mapped Reads'
+        out_lst.append(
+            {'Experiment':bam_files[i],'Total Reads':read_counts[2*i],'Mapped Reads':read_counts[2*i+1]})
 
-    return out_text
+    out_df = pd.DataFrame(out_lst)
+    out_df = out_df[['Experiment','Total Reads','Mapped Reads']]
+
+    return out_text+'\n'.join(out_df.to_string(index=False).split('\n'))
 
 '''
 Define a function that will load an expression dataframe for a single experiment.

@@ -8,6 +8,7 @@ import os
 import subprocess
 from multiprocessing import Pool
 from bx.intervals.intersection import Intersecter,Interval
+import functools
 
 '''
 Define a function that can get genes that can be used for DoG discovery.
@@ -505,33 +506,72 @@ def get_dog_exp(tag_dirs,dog_files,stranded,out_dir,cpu):
     pool.map(get_regions_exp,cmds)
     pool.close()
 
-
 '''
-Define a function that can describe the DoG lengths.
+Define a function that can describe the DoG lengths for a single experiment.
 '''
 def summarize_dog_lens(dogs_bed):
 
-    df = pd.read_csv(dogs_bed, sep='\t', names=['Chrom', 'Start', 'End', 'Name', 'Score', 'Strand'])
-    df['Length'] = df.End - df.Start
+    df = pd.read_csv(dogs_bed,sep='\t',names=['Chrom','Start','End','Name','Score','Strand'])
+    df['Length'] = df.End-df.Start
+    df = pd.DataFrame(df.describe()['Length'])
 
-    return '\n'.join(df['Length'].describe().to_string().split('\n'))
+    return df
 
 '''
-Define a function that can describe DoG expression for all dogs.
+Define a function that can describe the DoG lengths for multiple experiments.
 '''
-def summarize_all_dog_exp(dog_exp):
+def summarize_dog_lens_all_expts(dogs_beds):
 
-    df = pd.read_csv(dog_exp,sep='\t')
+    summary_dfs = []
+    for dogs_bed in dogs_beds:
+        df = summarize_dog_lens(dogs_bed)
+        df.columns = [dogs_bed.split('/')[-1][:-9]]
+        summary_dfs.append(df)
+
+    output_df = functools.reduce(lambda left,right: pd.merge(left,right,left_index=True,right_index=True),summary_dfs)
+
+    return output_df
+
+'''
+Define a function that summarizes DoG expression for a single experiment.
+'''
+def summarize_dog_exp(dog_exp_file):
+
+    df = pd.read_csv(dog_exp_file,sep='\t')
     del df['Length']
 
-    return df.describe().to_string()
+    return df.describe()
 
 '''
-Define a function that summarizes DoG expression for an individual experiment.
+Define a function that summarizes DoG expression for multiple experiments.
 '''
-def summarize_dog_exp(exp_file):
+def summarize_dog_exp_all_expts(dog_exp_files):
 
-    df = pd.read_csv(exp_file,sep='\t')
-    expt = exp_file.split('/')[-1][:-14].replace('-','_').replace(' ','_')
+    summary_dfs = []
+    for dog_exp_file in dog_exp_files:
+        summary_dfs.append(summarize_dog_exp(dog_exp_file))
 
-    return df[expt].describe().to_string()
+    output_df = functools.reduce(lambda left,right: pd.merge(left,right,left_index=True,right_index=True),summary_dfs)
+
+    return output_df
+
+'''
+Create a function that can get the summary for DoGs.
+'''
+def summarize_all_dogs(all_dogs_bed,dogs_beds,all_dogs_exp,dogs_exp_files,min_dog_len,min_dog_coverage,dog_window):
+
+    summary = f'Summary for DoG finding with minimum length {min_dog_len} bp, minimum coverage of {min_dog_coverage} '+\
+              f'FPKM, and screening window of {dog_window} bp\n'
+
+    summary += 'Summary of DoG lengths for all DoGs:\n'+summarize_dog_lens(all_dogs_bed).to_string()
+
+    summary += '\nSummary of DoG lengths for all DoGs for all experiments:\n'+\
+               summarize_dog_lens_all_expts(dogs_beds).to_string()
+
+    summary += '\nSummary of expression for all DoGs across all experiments in FPKM\n'+\
+               summarize_dog_exp(all_dogs_exp).to_string()
+
+    summary += '\nSummary of expression for DoGs in each experiment in FPKM\n'+\
+               summarize_dog_exp_all_expts(dogs_exp_files).to_string()
+
+    return summary

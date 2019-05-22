@@ -8,7 +8,7 @@ from .readthrough import get_multi_gene_exp,get_max_isoform,get_gene_v_intergeni
     summarize_readthrough_stats,summarize_read_in_assignments
 from .diff_exp_read_in import read_in_diff_exp,assign_read_in_genes,summarize_diff_exp_read_in_assignments
 from .get_dogs import get_dog_screening,generate_screening_bed,get_multi_interval_coverage,generate_full_screening_bed,\
-    get_multi_dog_beds,merge_dogs,get_dog_exp,summarize_dog_lens,summarize_all_dog_exp,summarize_dog_exp
+    get_multi_dog_beds,merge_dogs,get_dog_exp,summarize_all_dogs
 
 
 import argparse
@@ -565,7 +565,7 @@ def main():
             print('Screening coverage for pre-screened DoGs...')
 
             #Screen for coverage threshold.
-            screening_coverage_dfs = get_multi_interval_coverage(dogs_tag_dirs, args.home_dir,
+            screening_coverage_dfs = get_multi_interval_coverage(dogs_tag_dirs,args.home_dir,
                                                                  [os.path.join(args.home_dir,
                                                                                tag_dir.split('/')[-1]+'.bed') for
                                                                   tag_dir in dogs_tag_dirs],args.min_dog_coverage,
@@ -600,15 +600,12 @@ def main():
 
         #Summarize DoG files.
         summary_file = os.path.join(artdeco_dir.summary_dir,'dogs_summary.txt')
-        summary = f'Summary for DoG finding with minimum length {args.min_dog_len} bp, minimum coverage of '+\
-                  f'{args.min_dog_coverage} FPKM, and screening window of {args.dog_window} bp\n'
-        summary += 'Summary of DoG lengths for all DoGs:\n'+summarize_dog_lens(artdeco_dir.all_dogs_bed)
-        for dogs_bed in artdeco_dir.all_dogs_beds:
-            summary += f'\nSummary of DoG lengths for {dogs_bed[:-4]}:\n'+summarize_dog_lens(dogs_bed)
-        summary += '\nSummary of expression for all DoGs across all experiments in FPKM\n'+\
-                   summarize_all_dog_exp(artdeco_dir.all_dogs_fpkm)
-        for dogs_exp in artdeco_dir.dogs_fpkm:
-            summary += f'\nSummary of DoG expression for {dogs_exp.split("/")[-1][:-14]}\n'+summarize_dog_exp(dogs_exp)
+        if os.path.isfile(summary_file):
+            os.remove(summary_file)
+
+        summary = summarize_all_dogs(artdeco_dir.all_dogs_bed,artdeco_dir.all_dogs_beds,artdeco_dir.all_dogs_fpkm,
+                                     artdeco_dir.all_dogs_fpkm_expts,args.min_dog_len,args.min_dog_coverage,
+                                     args.dog_window)
 
         for line in summary.split('\n'):
             print(line)
@@ -658,13 +655,18 @@ def main():
                                      args.read_in_fpkm,args.read_in_threshold,artdeco_dir.diff_exp_read_in_dir)
 
             #Summarize output.
+            print('Summarize read-in gene inference with differential expression information...')
             summary_file = os.path.join(artdeco_dir.summary_dir,'diff_exp_read_in_summary.txt')
-            summary = 'Summary for read-in assignments using differential expression\nThresholds are log2 fold change'+\
-                      f' > {args.log2FC}, p-value < {args.pval}, FPKM > {args.read_in_fpkm}, and read-in level '+\
-                      f' threshold is {args.read_in_threshold}'
+            if os.path.isfile(summary_file):
+                os.remove(summary_file)
+
+            assignment_files = []
             for condition1,condition2 in comparisons:
-                summary += '\n'+summarize_diff_exp_read_in_assignments(os.path.join(artdeco_dir.diff_exp_read_in_dir,
-                                                                f'{condition1}-{condition2}-read_in_assignment.txt'))
+                assignment_files.append(os.path.join(artdeco_dir.diff_exp_read_in_dir,
+                                                     f'{condition1}-{condition2}-read_in_assignment.txt'))
+
+            summary = summarize_diff_exp_read_in_assignments(assignment_files,args.log2FC,args.pval,args.read_in_fpkm,
+                                                             args.read_in_threshold)
 
             for line in summary.split('\n'):
                 print(line)

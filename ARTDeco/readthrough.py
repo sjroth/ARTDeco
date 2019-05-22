@@ -184,18 +184,19 @@ Define a function that can summarize read-in and readthrough levels.
 '''
 def summarize_readthrough_stats(readthrough_file,expts,mode,num_genes):
 
-    df = pd.read_csv(readthrough_file,sep='\t')
+    df = pd.read_csv(readthrough_file, sep='\t')
 
-    output = mode+' Summary'
+    summary_dfs = []
+    output = mode+' Summary\n'
     for expt in expts:
-        output += f'\n{mode} levels for {expt} for top {num_genes} genes:\n'
-
         summary = df[[expt+' Gene FPKM',f'{expt} log2Ratio {mode} vs. Gene']]
         summary = summary.nlargest(num_genes,expt+' Gene FPKM')
-        summary = '\n'.join(summary[f'{expt} log2Ratio {mode} vs. Gene'].describe().to_string().split('\n'))
-        output += summary
+        summary = summary[f'{expt} log2Ratio {mode} vs. Gene'].describe()
+        summary_dfs.append(summary)
 
-    return output
+    output_df = functools.reduce(lambda left,right: pd.merge(left,right,left_index=True,right_index=True),summary_dfs)
+
+    return output+'\n'.join(output_df.to_string().split('\n'))
 
 '''
 Define a function that can summarize read-in assignments.
@@ -204,11 +205,15 @@ def summarize_read_in_assignments(assignment_file,expts,read_in_threshold,read_i
 
     df = pd.read_csv(assignment_file, sep='\t')
 
-    output = 'Read-In Assignments for each experiment'
+    summary_dfs = []
+    output = f'Read-In Assignments for each experiment for threshold of {read_in_threshold} and FPKM >= '+\
+             f'{read_in_fpkm}\n'
     for expt in expts:
-        output += f'\nRead-In Assignments for {expt} with read-in level threshold of {read_in_threshold} and FPKM '+\
-                  f'cutoff of {read_in_fpkm}\n'
-        assignments = '\n'.join(df.groupby(expt+' Assignment').count()['Gene ID'].to_string().split('\n')[1:])
-        output += assignments
+        summary = pd.DataFrame(df.groupby(expt+' Assignment').count()['Gene ID'])
+        summary.columns = [f'{summary.index.name}']
+        summary.index.name = 'Assignment'
+        summary_dfs.append(summary)
 
-    return output
+    output_df = functools.reduce(lambda left,right: pd.merge(left,right,left_index=True,right_index=True),summary_dfs)
+
+    return output+'\n'.join(output_df.to_string().split('\n'))
