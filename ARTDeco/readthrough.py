@@ -184,7 +184,7 @@ Define a function that can summarize read-in and readthrough levels.
 '''
 def summarize_readthrough_stats(readthrough_file,expts,mode,num_genes):
 
-    df = pd.read_csv(readthrough_file, sep='\t')
+    df = pd.read_csv(readthrough_file,sep='\t')
 
     summary_dfs = []
     output = mode+' Summary\n'
@@ -203,7 +203,7 @@ Define a function that can summarize read-in assignments.
 '''
 def summarize_read_in_assignments(assignment_file,expts,read_in_threshold,read_in_fpkm):
 
-    df = pd.read_csv(assignment_file, sep='\t')
+    df = pd.read_csv(assignment_file,sep='\t')
 
     summary_dfs = []
     output = f'Read-In Assignments for each experiment for threshold of {read_in_threshold} and FPKM >= '+\

@@ -102,6 +102,8 @@ def summarize_diff_exp_read_in_assignments(assignment_files,log2FC,pval,read_in_
         df = pd.read_csv(assignment_file,sep='\t')
         summary = pd.DataFrame(df.groupby('Assignment').count()['Gene ID'])
         summary.columns = [assignment_file.split('/')[-1][:-23]]
+        if 'Read-In' not in summary.index:
+            summary.loc['Read-In'] = 0
         summary_dfs.append(summary)
 
     output_df = functools.reduce(lambda lef,right: pd.merge(lef,right,left_index=True,right_index=True),summary_dfs)
