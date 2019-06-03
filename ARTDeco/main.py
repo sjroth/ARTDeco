@@ -39,6 +39,9 @@ def main():
     parser.add_argument('-orientation',
                         help='Indicates whether the files are forward- or reverse-stranded. Options are Forward or '+
                              'Reverse. Required for stranded data',action='store')
+    parser.add_argument('-single',
+                        help='Indicates whether you want to create tag directories with a single file (useful for new'+\
+                             'assemblies with lots of scaffolds).',default=False,action='store_true')
     parser.add_argument('-gtf-file',help='GTF file',action='store')
     parser.add_argument('-cpu',help='Maximum CPUs to use',action='store',type=int,default=1)
     parser.add_argument('-chrom-sizes-file',help='Chromosome sizes file')
@@ -447,7 +450,7 @@ def main():
     if artdeco_dir.tag_dirs:
         print('Creating tag directories...')
         make_multi_tag_dirs([artdeco_dir.tag_dir_to_bam[tag_dir] for tag_dir in artdeco_dir.tag_dirs],
-                            artdeco_dir.preprocess_dir,flip,pe,stranded,min(len(artdeco_dir.tag_dirs),args.cpu))
+                            artdeco_dir.preprocess_dir,flip,pe,stranded,args.single,min(len(artdeco_dir.tag_dirs),args.cpu))
 
     #Generate quantification files.
     if artdeco_dir.quantification_files:

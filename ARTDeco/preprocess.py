@@ -86,7 +86,7 @@ def parse_gene_bed(bed_file):
     del genes['Feature']
 
     #Get gene-to-transcript map.
-    gene_to_transcript = genes[['Gene ID','Transcript ID']]
+    gene_to_transcript = genes[['Gene ID','Transcript ID']].drop_duplicates()
 
     #Condense annotation to minimum start and maximum stop for each gene.
     del genes['Transcript ID']
@@ -527,7 +527,7 @@ Define a function that can create a Homer tag directory.
 '''
 def make_tag_directory(args):
 
-    bam_file,tag_directory,flip,pe,stranded = args
+    bam_file,tag_directory,flip,pe,stranded,single = args
 
     #Format optional Homer commands.
     cmds = []
@@ -535,6 +535,8 @@ def make_tag_directory(args):
         cmds.append('-flip')
     if pe and stranded:
         cmds.append('-sspe')
+    if single:
+        cmds.append('-single')
 
     #Call Homer.
     p = subprocess.Popen(['makeTagDirectory',tag_directory,bam_file]+cmds,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
@@ -544,9 +546,9 @@ def make_tag_directory(args):
 Define a function that can create a batch of Homer tag directories. Currently configured assuming all have the same
 format.
 '''
-def make_multi_tag_dirs(bam_files,out_dir,flip,pe,stranded,cpu):
+def make_multi_tag_dirs(bam_files,out_dir,flip,pe,stranded,single,cpu):
 
-    cmds = [(bam_file,os.path.join(out_dir,bam_file.split('/')[-1][:-4]),flip,pe,stranded) for bam_file in bam_files]
+    cmds = [(bam_file,os.path.join(out_dir,bam_file.split('/')[-1][:-4]),flip,pe,stranded,single) for bam_file in bam_files]
     pool = Pool(processes=cpu)
     pool.map(make_tag_directory,cmds)
     pool.close()

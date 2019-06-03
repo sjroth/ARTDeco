@@ -106,6 +106,6 @@ def summarize_diff_exp_read_in_assignments(assignment_files,log2FC,pval,read_in_
             summary.loc['Read-In'] = 0
         summary_dfs.append(summary)
 
-    output_df = functools.reduce(lambda lef,right: pd.merge(lef,right,left_index=True,right_index=True),summary_dfs)
+    output_df = functools.reduce(lambda left,right: pd.merge(left,right,left_index=True,right_index=True),summary_dfs)
 
     return  output+'\n'.join(output_df.to_string().split('\n'))
