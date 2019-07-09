@@ -40,10 +40,6 @@ def parse_gene_bed(bed_file):
     #Limit to genes on non-mitochondrial chromosomes.
     genes = genes[genes.Chrom != 'chrM']
 
-    #Parse out gene name.
-    if '.' in genes['Gene ID'][0]:
-        genes['Gene ID'] = genes.apply(lambda x: x[0][:x[0].index('.')],axis=1)
-
     #For each gene, parse out the feature info to get the transcript ID. Only keep entries with a transcript ID. Include
     #gene type information if available.
     transcripts = []
