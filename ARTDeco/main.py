@@ -67,8 +67,8 @@ def main():
                         default=0.05)
     parser.add_argument('-min-dog-len',help='Minimum DoG length. Default is 4 kb.',type=int,default=4000)
     parser.add_argument('-dog-window',help='DoG window size. Default is 500 bp.',type=int,default=500)
-    parser.add_argument('-min-dog-coverage',help='Minimum FPKM for DoG discovery. Default is 0.1 FPKM.',type=float,
-                        default=0.1)
+    parser.add_argument('-min-dog-coverage',help='Minimum FPKM for DoG discovery. Default is 0.2 FPKM.',type=float,
+                        default=0.2)
     args = parser.parse_known_args()[0]
 
     if args.mode in ['preprocess','readthrough','get_dogs','diff_exp_read_in','diff_exp_dogs']:

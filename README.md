@@ -186,7 +186,7 @@ The required arguments are -mode, -gtf-file, and -chrom-sizes-file. All other ar
 -cpu -- Number of CPU to use. Default is 1.
 -min-dog-len -- Minimum DoG length. Default is 4 kb.
 -dog-window -- DoG window size. Default is 500 bp.
--min-dog-coverage -- Minimum FPKM for DoG discovery. Default is 0.1 FPKM.
+-min-dog-coverage -- Minimum FPKM for DoG discovery. Default is 0.2 FPKM.
 ```
 If you have not run preprocess or readthrough modes, include their parameters as well.
 ### Differential Expression with Read-In Information mode
