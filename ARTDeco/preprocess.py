@@ -83,10 +83,6 @@ def parse_gene_bed(bed_file):
 
     genes = pd.DataFrame(transcripts)
 
-    #Restrict to protein coding genes if gene type information is available.
-    if 'Gene Type' in genes.columns:
-        genes = genes[genes['Gene Type'] == 'protein_coding']
-
     genes = genes[['Gene ID','Transcript ID','Feature','Chrom','Start','End','Strand']]
 
     #If a transcript is a feature, limit features to that. Otherwise, get the transcript coordinates.
@@ -266,6 +262,7 @@ def create_stranded_read_in_df(df,chrom_lengths,max_len=15000,min_len=100,upstre
     neg_strand = neg_strand[['Name','Chrom','Strand','Upstream Start','Upstream Stop']]
     read_in = pos_strand.append(neg_strand)
     read_in.columns = ['Name','Chrom','Strand','Start','Stop']
+    read_in = read_in[read_in.Start < read_in.Stop]
     read_in = read_in.sort_values(['Chrom','Start'])
     read_in = format_read_in_df(read_in,min_len,chrom_lengths)
 
@@ -349,6 +346,7 @@ def create_unstranded_read_in_df(df,chrom_lengths,max_len=15000,min_len=100,upst
     #Format read-in dataframe.
     read_in = genes_df[['Name','Chrom','Strand','Upstream Start','Upstream Stop','Read In Length']].copy()
     read_in.columns = ['Name','Chrom','Strand','Start','Stop','Length']
+    read_in = read_in[read_in.Start < read_in.Stop]
     read_in = format_read_in_df(read_in,min_len,chrom_lengths)
 
     return read_in
@@ -442,6 +440,7 @@ def create_stranded_downstream_df(df,chrom_lengths,max_len=15000,min_len=100,dow
     neg_strand = neg_strand[['Name','Chrom','Strand','Downstream Start','Downstream Stop']]
     downstream = pos_strand.append(neg_strand)
     downstream.columns = ['Name','Chrom','Strand','Start','Stop']
+    downstream = downstream[downstream.Start < downstream.Stop]
     downstream = downstream.sort_values(['Chrom','Start'])
     downstream = downstream.reset_index(drop=True)
 
@@ -547,6 +546,7 @@ def create_unstranded_downstream_df(df,chrom_lengths,max_len=15000,min_len=100,d
     genes_df['Downstream Stop'] = genes_df['Downstream Stop'].astype(int)
     genes_df = genes_df[['Name','Chrom','Strand','Downstream Start','Downstream Stop']]
     genes_df.columns = ['Name','Chrom','Strand','Start','Stop']
+    genes_df = genes_df[genes_df.Start < genes_df.Stop].copy()
 
     return genes_df
 
