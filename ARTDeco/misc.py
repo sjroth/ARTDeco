@@ -58,12 +58,13 @@ class ARTDecoDir:
         self.genes_condensed = os.path.join(self.preprocess_dir,'genes_condensed.bed')
         self.genes_full = os.path.join(self.preprocess_dir,'genes.full.bed')
         self.gene_to_transcript = os.path.join(self.preprocess_dir,'gene_to_transcript.txt')
+        self.gene_types = os.path.join(self.preprocess_dir,'gene_types.txt')
         self.meta_file = os.path.join(self.preprocess_dir,'meta.reformatted.txt')
         self.read_in_bed = os.path.join(self.preprocess_dir,'read_in.bed')
         self.readthrough_bed = os.path.join(self.preprocess_dir,'readthrough.bed')
 
-        self.preprocessing_files = {self.genes_condensed,self.genes_full,self.gene_to_transcript,self.read_in_bed,
-                                    self.readthrough_bed} | self.tag_dirs
+        self.preprocessing_files = {self.genes_condensed,self.genes_full,self.gene_to_transcript,self.gene_types,
+                                    self.read_in_bed,self.readthrough_bed} | self.tag_dirs
 
         #Add nodes.
         self.dependency.add_nodes_from(self.preprocessing_files)
@@ -72,6 +73,7 @@ class ARTDecoDir:
         self.dependency.add_edges_from([(self.preprocess_dir,self.comparisons_file),
                                         (self.preprocess_dir,self.genes_full),(self.preprocess_dir,self.meta_file),
                                         (self.genes_full,self.genes_condensed),
+                                        (self.genes_full,self.gene_types),
                                         (self.genes_condensed,self.gene_to_transcript),
                                         (self.genes_condensed,self.read_in_bed),
                                         (self.genes_condensed,self.readthrough_bed)]+
@@ -99,8 +101,8 @@ class ARTDecoDir:
                                        [(tag_dir,self.gene_raw) for tag_dir in self.tag_dirs]+
                                        [(tag_dir,self.read_in_exp) for tag_dir in self.tag_dirs]+
                                        [(tag_dir,self.readthrough_exp) for tag_dir in self.tag_dirs]+
-                                       [(self.gene_fpkm, self.max_isoform),(self.read_in_bed,self.read_in_exp),
-                                        (self.readthrough_bed,self.readthrough_exp),
+                                       [(self.gene_fpkm,self.max_isoform),(self.gene_to_transcript,self.max_isoform),
+                                        (self.read_in_bed,self.read_in_exp),(self.readthrough_bed,self.readthrough_exp),
                                         (self.read_in_bed,self.read_in_exp)])
 
         #Readthrough files.
@@ -116,14 +118,15 @@ class ARTDecoDir:
         #Add edges.
         self.dependency.add_edges_from([(self.readthrough_dir,self.read_in_levels),
                                         (self.readthrough_dir,self.readthrough_levels),
-                                        (self.gene_fpkm, self.read_in_levels), (self.gene_raw, self.read_in_levels),
-                                        (self.max_isoform, self.read_in_levels),
-                                        (self.read_in_exp, self.read_in_levels),
-                                        (self.gene_fpkm, self.readthrough_levels),
-                                        (self.gene_raw, self.readthrough_levels),
-                                        (self.max_isoform, self.readthrough_levels),
-                                        (self.readthrough_exp, self.readthrough_levels),
-                                        (self.read_in_levels, self.read_in_assignments)])
+                                        (self.gene_fpkm,self.read_in_levels),(self.gene_raw,self.read_in_levels),
+                                        (self.max_isoform,self.read_in_levels),
+                                        (self.read_in_exp,self.read_in_levels),
+                                        (self.gene_fpkm,self.readthrough_levels),
+                                        (self.gene_raw,self.readthrough_levels),
+                                        (self.max_isoform,self.readthrough_levels),
+                                        (self.readthrough_exp,self.readthrough_levels),
+                                        (self.read_in_levels,self.read_in_assignments),
+                                        (self.gene_types,self.read_in_assignments)])
 
         #DoGs files.
         self.all_dogs_bed = os.path.join(self.dogs_dir,'all_dogs.bed')
@@ -167,7 +170,8 @@ class ARTDecoDir:
                                        [(self.all_dogs_bed,self.all_dogs_fpkm),(self.all_dogs_bed,self.all_dogs_raw)])
 
         #Assorted lists for prerequisite files.
-        self.gtf_needed = {self.genes_full,self.gene_fpkm,self.gene_raw}
+        self.gtf_needed = {self.genes_condensed,self.genes_full,self.gene_to_transcript,self.gene_types,self.gene_fpkm,
+                           self.gene_raw}
         self.format_needed = {self.read_in_bed,self.readthrough_bed,self.gene_fpkm,self.gene_raw,self.read_in_exp,
                               self.readthrough_exp,self.all_dogs_fpkm,self.all_dogs_raw} | self.tag_dirs | \
                              self.dogs_beds | self.dogs_fpkm | self.dogs_fpkm

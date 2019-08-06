@@ -72,7 +72,7 @@ def read_in_diff_exp(read_in_file,meta_file,conditions_file,out_dir):
 Define a function that can assign read-in genes for upregulated genes given thresholds for log2 fold change, p-value,
 FPKM, and a read-in threshold.
 '''
-def assign_read_in_genes(diff_exp_read_in_file,log2FC,pval,FPKM,read_in_threshold,out_dir):
+def assign_read_in_genes(diff_exp_read_in_file,log2FC,pval,FPKM,read_in_threshold,gene_types_file,gene_types,out_dir):
 
     #Get conditions.
     condition1,condition2 = diff_exp_read_in_file.split('/')[-1].split('-')[:2]
@@ -87,6 +87,14 @@ def assign_read_in_genes(diff_exp_read_in_file,log2FC,pval,FPKM,read_in_threshol
     upreg['Assignment'] = 'Primary Induction'
     read_in_index = upreg[upreg[condition1+' Read-In vs. Gene'] > read_in_threshold].index
     upreg.loc[read_in_index,'Assignment'] = 'Read-In'
+
+    #Limit gene types.
+    gene_types_df = pd.read_csv(gene_types_file, sep='\t')
+
+    if gene_types and len(gene_types_df) > 0:
+        gene_types_df = gene_types_df[gene_types_df['Gene Type'].isin(gene_types)]
+        upreg = upreg[upreg['Gene ID'].isin(gene_types_df['Gene ID'])]
+
     upreg.to_csv(os.path.join(out_dir,f'{condition1}-{condition2}-read_in_assignment.txt'),sep='\t',index=False)
 
 '''

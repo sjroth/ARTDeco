@@ -83,6 +83,11 @@ def parse_gene_bed(bed_file):
 
     genes = pd.DataFrame(transcripts)
 
+    if 'Gene Type' in genes.columns:
+        gene_types = genes[['Gene ID','Gene Type']].drop_duplicates()
+    else:
+        gene_types = pd.DataFrame()
+
     genes = genes[['Gene ID','Transcript ID','Feature','Chrom','Start','End','Strand']]
 
     #If a transcript is a feature, limit features to that. Otherwise, get the transcript coordinates.
@@ -132,7 +137,7 @@ def parse_gene_bed(bed_file):
     genes = genes[['Chrom','Start','End','Gene ID','Score','Strand']]
     genes.columns = ['Chrom','Start','End','Name','Score','Strand']
 
-    return genes,gene_to_transcript
+    return genes,gene_types,gene_to_transcript
 
 '''
 Define a function that can do the conversion of a GTF file into a condensed genes dataframe.
@@ -149,10 +154,11 @@ def parse_gtf(gtf_file,home_dir):
 
     #Generate condensed genes and gene-to-transcript mapping.
     print('Generating condensed genes bed...')
-    genes,gene_to_transcript = parse_gene_bed(gene_full_bed)
+    genes,gene_types,gene_to_transcript = parse_gene_bed(gene_full_bed)
 
     #Output condensed genes BED file and gene-to-transcript mapping file.
     genes.to_csv(os.path.join(home_dir,'preprocess_files','genes_condensed.bed'),sep='\t',header=False,index=False)
+    gene_types.to_csv(os.path.join(home_dir,'preprocess_files','gene_types.txt'),sep='\t',index=False)
     gene_to_transcript.to_csv(os.path.join(home_dir,'preprocess_files','gene_to_transcript.txt'),index=False,sep='\t')
 
 '''

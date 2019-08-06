@@ -46,7 +46,7 @@ def main():
     parser.add_argument('-cpu',help='Maximum CPUs to use',action='store',type=int,default=1)
     parser.add_argument('-chrom-sizes-file',help='Chromosome sizes file')
     parser.add_argument('-read-in-dist',help='Read-in distance. Default is 1 kb.',type=int,default=1000)
-    parser.add_argument('-readthrough-dist',help='Readthrough distance. Default is 5 kb.',type=int,default=5000)
+    parser.add_argument('-readthrough-dist',help='Readthrough distance. Default is 10 kb.',type=int,default=10000)
     parser.add_argument('-intergenic-min-len',help='Minimum length for intergenic regions. Default is 100 bp.',type=int,
                         default=100)
     parser.add_argument('-intergenic-max-len',help='Maximum length for intergenic regions. Default is 15 kb.',type=int,
@@ -67,8 +67,10 @@ def main():
                         default=0.05)
     parser.add_argument('-min-dog-len',help='Minimum DoG length. Default is 4 kb.',type=int,default=4000)
     parser.add_argument('-dog-window',help='DoG window size. Default is 500 bp.',type=int,default=500)
-    parser.add_argument('-min-dog-coverage',help='Minimum FPKM for DoG discovery. Default is 0.2 FPKM.',type=float,
-                        default=0.2)
+    parser.add_argument('-min-dog-coverage',help='Minimum FPKM for DoG discovery. Default is 0.15 FPKM.',type=float,
+                        default=0.15)
+    parser.add_argument('-gene-types',help='Limit gene sets for reporting. Default is all gene types.',nargs='+',
+                        action="store")
     args = parser.parse_known_args()[0]
 
     if args.mode in ['preprocess','readthrough','get_dogs','diff_exp_read_in','diff_exp_dogs']:
@@ -313,7 +315,8 @@ def main():
             else:
                 print('Generating full genes BED file...')
                 parse_gtf(args.gtf_file,args.home_dir)
-                out_files -= {artdeco_dir.genes_full,artdeco_dir.genes_condensed,artdeco_dir.gene_to_transcript}
+                out_files -= {artdeco_dir.genes_full,artdeco_dir.genes_condensed,artdeco_dir.gene_to_transcript,
+                              artdeco_dir.gene_types}
                 artdeco_dir.update_dir_lists(out_files)
 
             #Check file formats.
@@ -399,8 +402,8 @@ def main():
             os.mkdir(artdeco_dir.preprocess_dir)
 
         if artdeco_dir.preprocessing_files & {artdeco_dir.genes_condensed,artdeco_dir.genes_full,
-                                              artdeco_dir.gene_to_transcript}:
-            parse_gtf(args.gtf_file, args.home_dir)
+                                              artdeco_dir.gene_to_transcript,artdeco_dir.gene_types}:
+            parse_gtf(args.gtf_file,args.home_dir)
 
         #Load genes.
         genes = pd.read_csv(artdeco_dir.genes_condensed,sep='\t',header=None,
@@ -497,22 +500,38 @@ def main():
         if artdeco_dir.read_in_assignments in artdeco_dir.readthrough_files:
             print(f'Read-in genes assigned with read-in level threshold is {args.read_in_threshold} and read-in FPKM '+\
                   f'threshold is {args.read_in_fpkm}...')
+            if args.gene_types and len(open(artdeco_dir.gene_types).readlines()) > 1:
+                print('Using the following gene types: ' + ', '.join(args.gene_types) + '...')
+            else:
+                args.gene_types = None
+                print('Using all genes...')
             assign_genes(artdeco_dir.read_in_levels,args.read_in_threshold,args.read_in_fpkm,
-                         artdeco_dir.read_in_assignments)
+                         artdeco_dir.read_in_assignments,artdeco_dir.gene_types,args.gene_types)
 
         #Summarize output.
         print('Summarizing readthrough output...')
+
+        if args.gene_types and len(open(artdeco_dir.gene_types).readlines()) > 1:
+            print('Using the following gene types: '+', '.join(args.gene_types)+'...')
+        else:
+            args.gene_types = None
+            print('Using all genes...')
+
         summary_file = os.path.join(artdeco_dir.summary_dir,'readthrough_summary.txt')
+
         if os.path.isfile(summary_file):
             os.remove(summary_file)
+
         expts = []
         for f in os.listdir(artdeco_dir.bam_files_dir):
             if f[-4:] == '.bam':
                 expt = f[:-4].replace('-', '_').replace(' ', '_')
                 expts.append(expt)
 
-        summary = summarize_readthrough_stats(artdeco_dir.read_in_levels,expts,'Read-In',args.summary_genes)+'\n'+\
-                  summarize_readthrough_stats(artdeco_dir.readthrough_levels,expts,'Readthrough',args.summary_genes)+\
+        summary = summarize_readthrough_stats(artdeco_dir.read_in_levels,expts,'Read-In',
+                                              args.summary_genes,artdeco_dir.gene_types,args.gene_types)+'\n'+\
+                  summarize_readthrough_stats(artdeco_dir.readthrough_levels,expts,'Readthrough',args.summary_genes,
+                                              artdeco_dir.gene_types,args.gene_types)+\
                   '\n'+summarize_read_in_assignments(artdeco_dir.read_in_assignments,expts,args.read_in_threshold,
                                                      args.read_in_fpkm)
 
@@ -647,6 +666,11 @@ def main():
             print('Combining differential expression results and read-in information... Inferring read-in genes for '+\
                   f'upregulated genes with log2 fold change > {args.log2FC}, p-value < {args.pval}, and FPKM > '+\
                   f'{args.read_in_fpkm}... Read-in level threshold is {args.read_in_threshold}...')
+            if args.gene_types and len(open(artdeco_dir.gene_types).readlines()) > 1:
+                print('Using the following gene types: ' + ', '.join(args.gene_types) + '...')
+            else:
+                args.gene_types = None
+                print('Using all genes...')
             for condition1,condition2 in comparisons:
 
                 read_in_diff_exp(artdeco_dir.read_in_levels,artdeco_dir.meta_file,
@@ -655,7 +679,8 @@ def main():
 
                 assign_read_in_genes(os.path.join(artdeco_dir.diff_exp_read_in_dir,
                                                   f'{condition1}-{condition2}-read_in.txt'),args.log2FC,args.pval,
-                                     args.read_in_fpkm,args.read_in_threshold,artdeco_dir.diff_exp_read_in_dir)
+                                     args.read_in_fpkm,args.read_in_threshold,artdeco_dir.gene_types,args.gene_types,
+                                     artdeco_dir.diff_exp_read_in_dir)
 
             #Summarize output.
             print('Summarize read-in gene inference with differential expression information...')
