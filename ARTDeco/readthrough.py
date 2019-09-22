@@ -153,11 +153,13 @@ def assign_genes(read_in_file,read_in_threshold,read_in_fpkm,out_file,gene_types
     read_in_df = pd.read_csv(read_in_file,sep='\t')
 
     #Load gene type information and limit genes for consideration to those gene types.
-    gene_types_df = pd.read_csv(gene_types_file,sep='\t')
+    if sum(1 for line in open(gene_types_file)) > 1:
 
-    if gene_types and len(gene_types_df) > 0:
-        gene_types_df = gene_types_df[gene_types_df['Gene Type'].isin(gene_types)]
-        read_in_df = read_in_df[read_in_df['Gene ID'].isin(gene_types_df['Gene ID'])]
+        gene_types_df = pd.read_csv(gene_types_file,sep='\t')
+
+        if gene_types and len(gene_types_df) > 0:
+            gene_types_df = gene_types_df[gene_types_df['Gene Type'].isin(gene_types)]
+            read_in_df = read_in_df[read_in_df['Gene ID'].isin(gene_types_df['Gene ID'])]
 
     #Get experiments.
     expts = list(sorted(set([x.split()[0] for x in read_in_df.columns[2:]])))
@@ -192,11 +194,12 @@ Define a function that can summarize read-in and readthrough levels.
 def summarize_readthrough_stats(readthrough_file,expts,mode,num_genes,gene_types_file,gene_types):
 
     df = pd.read_csv(readthrough_file,sep='\t')
-    gene_types_df = pd.read_csv(gene_types_file,sep='\t')
+    if sum(1 for line in open(gene_types_file)) > 1:
+        gene_types_df = pd.read_csv(gene_types_file,sep='\t')
 
-    if gene_types and len(gene_types_df) > 0:
-        gene_types_df = gene_types_df[gene_types_df['Gene Type'].isin(gene_types)]
-        df = df[df['Gene ID'].isin(gene_types_df['Gene ID'])]
+        if gene_types and len(gene_types_df) > 0:
+            gene_types_df = gene_types_df[gene_types_df['Gene Type'].isin(gene_types)]
+            df = df[df['Gene ID'].isin(gene_types_df['Gene ID'])]
 
     summary_dfs = []
     output = mode+' Summary\n'
