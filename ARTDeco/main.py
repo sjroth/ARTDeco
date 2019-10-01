@@ -529,11 +529,14 @@ def main():
                 expts.append(expt)
 
         summary = summarize_readthrough_stats(artdeco_dir.read_in_levels,expts,'Read-In',
-                                              args.summary_genes,artdeco_dir.gene_types,args.gene_types)+'\n'+\
-                  summarize_readthrough_stats(artdeco_dir.readthrough_levels,expts,'Readthrough',args.summary_genes,
-                                              artdeco_dir.gene_types,args.gene_types)+\
-                  '\n'+summarize_read_in_assignments(artdeco_dir.read_in_assignments,expts,args.read_in_threshold,
-                                                     args.read_in_fpkm)
+                                              args.summary_genes,artdeco_dir.gene_types,args.gene_types)
+
+        if os.path.isfile(artdeco_dir.readthrough_levels):
+            summary += '\n'+summarize_readthrough_stats(artdeco_dir.readthrough_levels,expts,'Readthrough',
+                                                        args.summary_genes,artdeco_dir.gene_types,args.gene_types)
+
+        summary += '\n'+summarize_read_in_assignments(artdeco_dir.read_in_assignments,expts,args.read_in_threshold,
+                                                      args.read_in_fpkm)
 
         for line in summary.split('\n'):
             print(line)
