@@ -71,6 +71,8 @@ def main():
                         default=0.15)
     parser.add_argument('-gene-types',help='Limit gene sets for reporting. Default is all gene types.',nargs='+',
                         action="store")
+    parser.add_argument('-skip-bam-summary',help='Skip summary of BAM files (useful for time saving).',default=False,
+                        action='store_true')
     args = parser.parse_known_args()[0]
 
     if args.mode in ['preprocess','readthrough','get_dogs','diff_exp_read_in','diff_exp_dogs']:
@@ -370,15 +372,18 @@ def main():
                     sys.exit(1)
 
         #Summarize files.
-        print('Summarizing BAM file stats...')
-        summary_file = os.path.join(artdeco_dir.summary_dir,'bam_summary.txt')
-        if os.path.isfile(summary_file):
-            os.remove(summary_file)
-        summary = summarize_bam_files(artdeco_dir.bam_files,args.cpu,pe,stranded,flip)
-        for line in summary.split('\n'):
-            print(line)
-        with open(summary_file,'w') as f:
-            f.write(summary)
+        if args.skip_bam_summary:
+            print('Skipping summary of BAM file stats...')
+        else:
+            print('Summarizing BAM file stats...')
+            summary_file = os.path.join(artdeco_dir.summary_dir,'bam_summary.txt')
+            if os.path.isfile(summary_file):
+                os.remove(summary_file)
+            summary = summarize_bam_files(artdeco_dir.bam_files,args.cpu,pe,stranded,flip)
+            for line in summary.split('\n'):
+                print(line)
+            with open(summary_file,'w') as f:
+                f.write(summary)
 
     #Load chromosome sizes file if needed.
     if artdeco_dir.chrom_sizes_needed:
