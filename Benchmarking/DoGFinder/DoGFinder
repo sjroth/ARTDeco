@@ -1,0 +1,79 @@
+#######################################################################################################################
+# Pipeline for preprocessing IAV data for comparison and benchmarking of DoGFinder. This is single-end, reverse-      #
+# stranded data. The preprocessing steps were as follows:                                                             #
+# 1. Convert BAM file to SAM format.                                                                                  #
+# 2. Flip the strand orientation on each read.                                                                        #
+# 3. Sort the BAM file into a sorted BAM file.                                                                        #
+# 4. Index the sorted BAM file.                                                                                       #
+#######################################################################################################################
+
+# Change location to benchmarking directory.
+import os
+os.chdir("/gpfs/data01/bennerlab/home/sjroth/ReadThrough/Benchmarking/aligned_files")
+
+# Chromosome BED file. Ensures that only canonical chromosomes are used.
+# Generated with the following command:
+# awk '/^chrX|chrY|chr[0-9]*\t/ {printf("%s\t0\t%s\n",$1,$2);}' hg38.fa.fai  > hg38.chrom.bed
+chroms_file = "/gpfs/data01/bennerlab/home/sjroth/genomes/hg38.chrom.bed"
+
+SAMPLES, = glob_wildcards("{sample}.bam")
+
+rule all:
+    input:
+        expand("{sample}.sorted.bam.bai",sample=SAMPLES)
+
+rule convert_to_sam:
+    input:
+        "{sample}.bam"
+    output:
+        "{sample}.sam"
+    params:
+        chroms_file
+    shell:
+        "samtools view -h -L {params} -o {output} {input}"
+
+rule flip_strand:
+    input:
+        "{sample}.sam"
+    output:
+        "{sample}.flip.sam"
+    run:
+        sam_file = open(str(input))
+        new_sam_file = open(str(output),'w')
+
+        line = sam_file.readline().strip()
+        while line:
+            if line[0] != '@':
+                line = line.split('\t')
+                if int(line[1]) & 0x10:
+                    line[1] = str(int(line[1])-0x10)
+                else:
+                    line[1] = str(int(line[1])+0x10)
+                line = '\t'.join(line)
+            new_sam_file.write(line+'\n')
+            line = sam_file.readline().strip()
+
+        sam_file.close()
+        new_sam_file.close()
+        os.remove(str(input))
+
+rule sort_sam:
+    input:
+        "{sample}.flip.sam"
+    output:
+        "{sample}.sorted.bam"
+    threads:
+        20
+    shell:
+        """
+        samtools sort -@ {threads} -o {output} {input}
+        rm {input}
+        """
+
+rule bam_index:
+    input:
+        "{sample}.sorted.bam"
+    output:
+        "{sample}.sorted.bam.bai"
+    shell:
+        "samtools index {input}"
