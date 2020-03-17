@@ -1,0 +1,96 @@
+#######################################################################################################################
+# Pipeline for preprocessing IAV data for comparison and benchmarking of Dogcatcher. This is single-end, reverse-     #
+# stranded data. The preprocessing steps were as follows:                                                             #
+# 1. Convert BAM file to SAM format.                                                                                  #
+# 2. Flip the strand orientation on each read.                                                                        #
+# 3. Sort the BAM file into a sorted BAM file.                                                                        #
+# 4. Index the sorted BAM file.                                                                                       #
+# 5. Create plus and minus strand bedGraph files.
+#######################################################################################################################
+
+# Change location to benchmarking directory.
+import os
+os.chdir("/gpfs/data01/bennerlab/home/sjroth/ReadThrough/Benchmarking/")
+
+# Chromosome BED file. Ensures that only canonical chromosomes are used.
+# Generated with the following command:
+# awk '/^chrX|chrY|chr[0-9]*\t/ {printf("%s\t0\t%s\n",$1,$2);}' hg38.fa.fai  > hg38.chrom.bed
+chroms_file = "/gpfs/data01/bennerlab/home/sjroth/genomes/hg38.chrom.bed"
+
+#Chromosome sizes file.
+chrom_sizes = "/gpfs/data01/bennerlab/home/sjroth/genomes/hg38.chrom.sizes"
+
+SAMPLES, = glob_wildcards("aligned_files/{sample}.bam")
+
+rule all:
+    input:
+        expand("{sample}_plu.bedGraph",sample=SAMPLES),
+        expand("{sample}_min.bedGraph",sample=SAMPLES)
+
+rule convert_to_sam:
+    input:
+        "aligned_files/{sample}.bam"
+    output:
+        "aligned_files/{sample}.sam"
+    params:
+        chroms_file
+    shell:
+        "samtools view -h -L {params} -o {output} {input}"
+
+rule flip_strand:
+    input:
+        "aligned_files/{sample}.sam"
+    output:
+        "aligned_files/{sample}.flip.sam"
+    run:
+        sam_file = open(str(input))
+        new_sam_file = open(str(output),'w')
+
+        line = sam_file.readline().strip()
+        while line:
+            if line[0] != '@':
+                line = line.split('\t')
+                if int(line[1]) & 0x10:
+                    line[1] = str(int(line[1])-0x10)
+                else:
+                    line[1] = str(int(line[1])+0x10)
+                line = '\t'.join(line)
+            new_sam_file.write(line+'\n')
+            line = sam_file.readline().strip()
+
+        sam_file.close()
+        new_sam_file.close()
+        os.remove(str(input))
+
+rule sort_sam:
+    input:
+        "aligned_files/{sample}.flip.sam"
+    output:
+        "aligned_files/{sample}.sorted.bam"
+    threads:
+        20
+    shell:
+        """
+        samtools sort -@ {threads} -o {output} {input}
+        rm {input}
+        """
+
+rule plu_bedgraph:
+    input:
+        "aligned_files/{sample}.sorted.bam"
+    output:
+        "{sample}_plu.bedGraph"
+    params:
+        chrom_sizes
+    shell:
+        "bedtools genomecov -bg -split -strand + -ibam {input} -g {params} > {output}"
+
+rule min_bedgraph:
+    input:
+        "aligned_files/{sample}.sorted.bam"
+    output:
+        "{sample}_min.bedGraph"
+    params:
+        chrom_sizes
+    shell:
+        "bedtools genomecov -bg -split -strand - -ibam {input} -g {params} > {output}"
