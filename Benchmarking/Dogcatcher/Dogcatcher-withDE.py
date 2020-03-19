@@ -80,7 +80,6 @@ for i in range(len(processes)):
 
 #Run DESeq2.
 for condition,samples in condition_to_sample.items():
-
     if condition != 'Mock/':
         output_dir = condition[:-1]+'-diff/'
         process = subprocess.Popen(['python',os.path.join(software_dir,'3.0_Create_R_subread_DESeq2_script.py'),
@@ -92,7 +91,6 @@ for condition,samples in condition_to_sample.items():
                                     '--input_prefix',output_dir,'--output_prefix',
                                     os.path.join(output_dir,'initial_Rsubread_DESeq2'),'--cpus','50','--padj','0.05'])
         stdout,stderr = process.communicate()
-
         process = subprocess.Popen(['R','CMD','BATCH',
                                 os.path.join(output_dir,'initial_Rsubread_DESeq2/Rsubread_DESeq2_initial.R'),
                                 os.path.join(output_dir,'initial_Rsubread_DESeq2/Rsubread_DESeq2_initial.R.out')])
@@ -100,7 +98,6 @@ for condition,samples in condition_to_sample.items():
 
 #Generate a gtf with read-through and non-significant genes for proper normalization.
 for condition in condition_to_sample.keys():
-
     if condition != 'Mock/':
         output_dir = condition[:-1] + '-diff/'
         process = subprocess.Popen(['python',os.path.join(software_dir,'4.0_Dogcatcher_Rsubread_DESeq2.py'),
@@ -109,10 +106,8 @@ for condition in condition_to_sample.keys():
                                     '--output_prefix',os.path.join(output_dir,'Dogcatcher_with_non-significant_genes'),
                                     '--padj','0.05'])
         stdout,stderr = process.communicate()
-
         for dog in ['DOG','ADOG']:
             for strand in ['plu','min']:
-
                 process = subprocess.Popen(['R','CMD','BATCH',
                                     os.path.join(output_dir,'Dogcatcher_with_non-significant_genes',
                                                  f'{strand}_ALL_SAMPLES_{dog}_with_nonsig.R'),
@@ -120,13 +115,9 @@ for condition in condition_to_sample.keys():
                                                  f'{strand}_ALL_SAMPLES_{dog}_with_nonsig.R.out')])
                 stdout,stderr = process.communicate()
 
-
-
-
 #Filter results.
 processes = []
 for condition in condition_to_sample.keys():
-
     if condition != 'Mock/':
         output_dir = condition[:-1]+'-diff/'
         process = subprocess.Popen(['python',os.path.join(software_dir,'5.0_filter_sig_DESeq2.py'),
