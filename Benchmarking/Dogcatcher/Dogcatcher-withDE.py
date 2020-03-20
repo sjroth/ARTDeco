@@ -29,7 +29,6 @@ stdout,stderr = process.communicate()
 Define a function that can run DoG discovery for a given experiment.
 '''
 def discover_dog(args):
-
     experiment,out_dir = args
     process = subprocess.Popen(['python',os.path.join(software_dir,'2.0_Dogcatcher.py'),'--annotation_file_with_path',
                                 gtf_file,'--cpus','25','--BedGraph_input_min_strand',experiment+'_min.bedGraph',
