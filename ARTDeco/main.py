@@ -51,8 +51,8 @@ def main():
                         default=100)
     parser.add_argument('-intergenic-max-len',help='Maximum length for intergenic regions. Default is 15 kb.',type=int,
                         default=15000)
-    parser.add_argument('-read-in-threshold', help='Threshold for considering read-in gene. Default is 0.',type=float,
-                        default=0)
+    parser.add_argument('-read-in-threshold', help='Threshold for considering read-in gene. Default is -1.',type=float,
+                        default=-1)
     parser.add_argument('-read-in-fpkm',help='Minimum FPKM value for considering a gene. Default is 0.25 FPKM.',
                         type=float,default=0.25)
     parser.add_argument('-summary-genes', help='Number of genes for summarizing readthrough levels. Default is 1000.',

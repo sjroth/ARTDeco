@@ -345,6 +345,80 @@ def get_dog_coordinates(gene,strand,window):
 
 
 '''
+Define a function that can remove overlaps from a set of DoGs and return the maximum length DoG.
+'''
+def max_dogs(dogs_df):
+
+    #Generate overlap intervals for each strand.
+    pos_strand_intervals = {}
+    neg_strand_intervals = {}
+    dogs_vals = dogs_df.values
+    for dog in dogs_vals:
+
+        if dog[4] == '+':
+
+            if dog[1] not in pos_strand_intervals:
+                pos_strand_intervals[dog[1]] = Intersecter()
+
+            pos_strand_intervals[dog[1]].add_interval(Interval(dog[2],dog[3],dog[0]))
+
+        else:
+
+            if dog[1] not in neg_strand_intervals:
+                neg_strand_intervals[dog[1]] = Intersecter()
+
+            neg_strand_intervals[dog[1]].add_interval(Interval(dog[2],dog[3],dog[0]))
+
+    #Remove overlaps. Keep DoGs with max coordinates.
+    max_dogs = []
+    overlapping_genes = set()
+    for dog in dogs_vals:
+
+        #Get overlaps.
+        if dog[4] == '+':
+            overlaps = pos_strand_intervals[dog[1]].find(dog[2],dog[3])
+        if dog[4] == '-':
+            overlaps = neg_strand_intervals[dog[1]].find(dog[2],dog[3])
+
+        #No overlaps.
+        if len(overlaps) == 1:
+            name = dog[0]
+            start = dog[2]
+            end = dog[3]
+
+        #One or more overlaps.
+        else:
+
+            #If the gene or an overlap has occurred, skip it.
+            if overlaps[0].value in overlapping_genes:
+                continue
+
+            #Positive strand case.
+            if dog[4] == '+':
+                name = overlaps[0].value
+                start = overlaps[0].start
+                end = max([x.end for x in overlaps])
+
+            #Negative strand case.
+            else:
+                start = overlaps[0].start
+                end = max([x.end for x in overlaps])
+
+                for overlap in overlaps:
+                    if overlap.end == end:
+                        name = overlap.value
+
+            #Add all overlapping genes to previously observed overlaps.
+            for overlap in overlaps:
+                overlapping_genes.add(overlap.value)
+
+        max_dogs.append({'Name':name,'Chrom':dog[1],'Start':start,'End':end,'Strand':dog[4]})
+
+    max_dogs_df = pd.DataFrame(max_dogs)
+
+    return max_dogs_df
+
+'''
 Define a function that can find DoG coordinates for pre-screened DoGs given the screening genes, screening coverage, and
 DoG window size.
 '''
@@ -378,72 +452,8 @@ def get_all_dog_coordinates(args):
     dogs_df = pd.DataFrame(dogs)[['Name','Start','End','Strand']]
     dogs_df = pd.merge(dogs_df,screening_genes[['Name','Chrom']],on='Name')
 
-    #Generate overlap intervals for each strand.
-    pos_strand_intervals = {}
-    neg_strand_intervals = {}
-    dogs_vals = dogs_df.values
-    for dog in dogs_vals:
-
-        if dog[3] == '+':
-
-            if dog[4] not in pos_strand_intervals:
-                pos_strand_intervals[dog[4]] = Intersecter()
-
-            pos_strand_intervals[dog[4]].add_interval(Interval(dog[1],dog[2],dog[0]))
-
-        else:
-
-            if dog[4] not in neg_strand_intervals:
-                neg_strand_intervals[dog[4]] = Intersecter()
-
-            neg_strand_intervals[dog[4]].add_interval(Interval(dog[1],dog[2],dog[0]))
-
     #Remove overlaps. Keep DoGs with max coordinates.
-    max_dogs = []
-    overlapping_genes = set()
-    for dog in dogs_vals:
-
-        #Get overlaps.
-        if dog[3] == '+':
-            overlaps = pos_strand_intervals[dog[4]].find(dog[1],dog[2])
-        if dog[3] == '-':
-            overlaps = neg_strand_intervals[dog[4]].find(dog[1],dog[2])
-
-        #No overlaps.
-        if len(overlaps) == 1:
-            name = dog[0]
-            start = dog[1]
-            end = dog[2]
-
-        #One or more overlaps.
-        else:
-
-            # If the gene or an overlap has occurred, skip it.
-            if overlaps[0].value in overlapping_genes:
-                continue
-
-            #Positive strand case.
-            if gene[0] == '+':
-                name = overlaps[0].value
-                start = overlaps[0].start
-                end = max([x.end for x in overlaps])
-
-            #Negative strand case.
-            else:
-                start = overlaps[0].start
-                end = max([x.end for x in overlaps])
-
-                for overlap in overlaps:
-                    if overlap.end == end:
-                        name = overlap.value
-
-            #Add all overlapping genes to previously observed overlaps.
-            for overlap in overlaps:
-                overlapping_genes.add(overlap.value)
-
-        max_dogs.append({'Name':name,'Start':start,'End':end,'Strand':dog[3],'Chrom':dog[4]})
-
-    max_dogs_df = pd.DataFrame(max_dogs)
+    max_dogs_df = max_dogs(dogs_df[['Name','Chrom','Start','End','Strand']])
     max_dogs_df['Score'] = 0
     max_dogs_df = max_dogs_df[['Chrom','Start','End','Name','Score','Strand']]
 
@@ -488,6 +498,11 @@ def merge_dogs(dog_files,out_dir):
     max_length = max_length.reset_index()
     dog_df = pd.merge(dog_df,max_length,on=['Name','Length']).drop_duplicates()
     del dog_df['Length']
+
+    #Remove overlaps to keep the longest continuous DoG.
+    dog_df = max_dogs(dog_df[['Name','Chrom','Start','End','Strand']])
+    dog_df['Score'] = 0
+    dog_df = dog_df[['Chrom','Start','End','Name','Score','Strand']]
 
     #Output to BED files.
     dog_df.to_csv(os.path.join(out_dir,'all_dogs.bed'),sep='\t',index=False,header=False)
