@@ -106,25 +106,28 @@ class ARTDecoDir:
                                         (self.read_in_bed,self.read_in_exp)])
 
         #Readthrough files.
+        self.corrected_exp = os.path.join(self.readthrough_dir, 'corrected_exp.txt')
         self.read_in_assignments = os.path.join(self.readthrough_dir,'read_in_assignments.txt')
         self.read_in_levels = os.path.join(self.readthrough_dir,'read_in.txt')
         self.readthrough_levels = os.path.join(self.readthrough_dir,'readthrough.txt')
 
-        self.readthrough_files = {self.read_in_assignments,self.read_in_levels,self.readthrough_levels}
+        self.readthrough_files = {self.read_in_assignments,self.read_in_levels,self.readthrough_levels,
+                                  self.corrected_exp}
 
         #Add nodes.
         self.dependency.add_nodes_from(self.readthrough_files)
 
         #Add edges.
-        self.dependency.add_edges_from([(self.readthrough_dir,self.read_in_levels),
+        self.dependency.add_edges_from([(self.readthrough_dir,self.corrected_exp),
+                                        (self.readthrough_dir,self.read_in_levels),
                                         (self.readthrough_dir,self.readthrough_levels),
                                         (self.gene_fpkm,self.read_in_levels),(self.gene_raw,self.read_in_levels),
-                                        (self.max_isoform,self.read_in_levels),
-                                        (self.read_in_exp,self.read_in_levels),
+                                        (self.max_isoform,self.read_in_levels),(self.read_in_exp,self.read_in_levels),
                                         (self.gene_fpkm,self.readthrough_levels),
                                         (self.gene_raw,self.readthrough_levels),
                                         (self.max_isoform,self.readthrough_levels),
                                         (self.readthrough_exp,self.readthrough_levels),
+                                        (self.read_in_levels,self.corrected_exp),
                                         (self.read_in_levels,self.read_in_assignments),
                                         (self.gene_types,self.read_in_assignments)])
 

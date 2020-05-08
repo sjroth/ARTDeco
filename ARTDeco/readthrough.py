@@ -144,6 +144,26 @@ def get_gene_v_intergenic(gene_count_file,gene_fpkm_file,max_isoform_file,interg
     gene_w_intergenic.to_csv(out_file,sep='\t',index=False)
 
 '''
+Define a function that can deconvolute gene expression using read-in information.
+'''
+def deconvolute_exp(read_in_file,out_file):
+
+    #Load read-in information.
+    read_in = pd.read_csv(read_in_file, sep='\t')
+
+    #Get corrected expression.
+    expts = sorted(set([col.split()[0] for col in read_in.columns[2:]]))
+    keep_cols = ['Gene ID', 'Transcript ID']
+    for expt in expts:
+        read_in[f'{expt} Corrected Count'] = read_in[f'{expt} Gene Count']-read_in[f'{expt} Read-In Count']
+        read_in[f'{expt} Corrected Count'].clip(lower=0,inplace=True)
+        keep_cols += [f'{expt} Gene Count',f'{expt} Corrected Count']
+    read_in = read_in[keep_cols]
+
+    #Output corrected expression.
+    read_in.to_csv(out_file,sep='\t',index=False)
+
+'''
 Define a function that can take in a read-in vs. gene expression file and output a dataframe of primary induction and
 read-in gene assignments.
 '''

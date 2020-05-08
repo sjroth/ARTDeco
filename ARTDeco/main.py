@@ -4,7 +4,7 @@ Main script for running ARTDeco. Contains code to run each of the modes.
 from .misc import ARTDecoDir,infer_experiments_group,output_inferred_format,summarize_bam_files,get_regions_exp
 from .preprocess import parse_gtf,create_stranded_downstream_df,create_stranded_read_in_df,\
     create_unstranded_downstream_df,create_unstranded_read_in_df,make_multi_tag_dirs
-from .readthrough import get_multi_gene_exp,get_max_isoform,get_gene_v_intergenic,assign_genes,\
+from .readthrough import get_multi_gene_exp,get_max_isoform,get_gene_v_intergenic,deconvolute_exp,assign_genes,\
     summarize_readthrough_stats,summarize_read_in_assignments
 from .diff_exp_read_in import read_in_diff_exp,assign_read_in_genes,summarize_diff_exp_read_in_assignments
 from .get_dogs import get_dog_screening,generate_screening_bed,get_multi_interval_coverage,generate_full_screening_bed,\
@@ -496,6 +496,10 @@ def main():
             print('Generate read-in vs. expression file...')
             get_gene_v_intergenic(artdeco_dir.gene_raw,artdeco_dir.gene_fpkm,artdeco_dir.max_isoform,
                                   artdeco_dir.read_in_exp,'Read-In',artdeco_dir.read_in_levels)
+
+        if artdeco_dir.corrected_exp in artdeco_dir.readthrough_files:
+            print('Correcting gene expression using read-in information...')
+            deconvolute_exp(artdeco_dir.read_in_levels,artdeco_dir.corrected_exp)
 
         if artdeco_dir.readthrough_levels in artdeco_dir.readthrough_files:
             print('Generate readthrough vs. expression file...')

@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='ARTDeco',
-    version='0.3',
+    version='0.4',
     packages=['ARTDeco'],
     url='https://github.com/sjroth/ARTDeco',
     license='MIT',
